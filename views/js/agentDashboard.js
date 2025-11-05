@@ -32,18 +32,24 @@ tailwind.config = {
 document.addEventListener('DOMContentLoaded', () => {
     // Search functionality
     const searchInput = document.querySelector('input[placeholder="Search agents..."]');
-    const agentCards = document.querySelectorAll('.md-col-span-8 .grid > div');
+    const agentCards = document.querySelectorAll('.md\\:col-span-8 .grid > div');
     
     // Filter buttons
-    const statusFilterBtn = document.getElementsByClassName('text-text-light dark:text-text-dark text-sm font-medium leading-normal');
-    const capabilitiesFilterBtn = document.getElementsByClassName('text-text-light dark:text-text-dark text-sm font-medium leading-normal)');
+    const statusFilterBtn = document.getElementById('statusFilterBtn');
+    const capabilitiesFilterBtn = document.getElementById('capabilitiesFilterBtn');
     
     // View toggle buttons
-    const gridViewBtn = document.getElementsByClassName('material-symbols-outlined');
-    const listViewBtn = document.querySelector('button:has(span:contains("table_rows"))');
+    const gridViewBtn = Array.from(document.querySelectorAll('button')).find(btn => 
+        btn.querySelector('span.material-symbols-outlined')?.textContent === 'grid_view'
+    );
+    const listViewBtn = Array.from(document.querySelectorAll('button')).find(btn => 
+        btn.querySelector('span.material-symbols-outlined')?.textContent === 'table_rows'
+    );
     
     // Create New Agent button
-    const createNewAgentBtn = document.querySelector('button:has(span:contains("Create New Agent"))');
+    const createNewAgentBtn = Array.from(document.querySelectorAll('button')).find(btn => 
+        btn.textContent.trim() === 'Create New Agent'
+    );
 
     // Search functionality
     searchInput.addEventListener('input', (e) => {
@@ -88,26 +94,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // View toggle functionality
     gridViewBtn.addEventListener('click', () => {
-        const agentGrid = document.querySelector('.md-col-span-8 .grid');
+        const agentGrid = document.querySelector('.md\\:col-span-8 .grid');
         agentGrid.classList.remove('grid-cols-1');
         agentGrid.classList.add('lg:grid-cols-2');
-        gridViewBtn.classList.add('bg-primary/10', 'dark:bg-primary/20');
-        listViewBtn.classList.remove('bg-primary/10', 'dark:bg-primary/20');
+        gridViewBtn.parentElement.querySelector('.text-inactive')?.classList.remove('text-inactive');
+        gridViewBtn.classList.add('text-primary');
+        listViewBtn.classList.remove('text-primary');
+        listViewBtn.classList.add('text-inactive');
     });
 
     listViewBtn.addEventListener('click', () => {
-        const agentGrid = document.querySelector('.md-col-span-8 .grid');
+        const agentGrid = document.querySelector('.md\\:col-span-8 .grid');
         agentGrid.classList.remove('lg:grid-cols-2');
         agentGrid.classList.add('grid-cols-1');
-        listViewBtn.classList.add('bg-primary/10', 'dark:bg-primary/20');
-        gridViewBtn.classList.remove('bg-primary/10', 'dark:bg-primary/20');
+        listViewBtn.parentElement.querySelector('.text-inactive')?.classList.remove('text-inactive');
+        listViewBtn.classList.add('text-primary');
+        gridViewBtn.classList.remove('text-primary');
+        gridViewBtn.classList.add('text-inactive');
     });
 
     // Agent card actions
-    document.querySelectorAll('.md-col-span-8 .grid > div').forEach(card => {
-        const editBtn = card.querySelector('button:has(span:contains("edit"))');
-        const copyBtn = card.querySelector('button:has(span:contains("content_copy"))');
-        const deleteBtn = card.querySelector('button:has(span:contains("delete"))');
+    document.querySelectorAll('.md\\:col-span-8 .grid > div').forEach(card => {
+        const editBtn = Array.from(card.querySelectorAll('button')).find(btn => 
+            btn.querySelector('span.material-symbols-outlined')?.textContent === 'edit'
+        );
+        const copyBtn = Array.from(card.querySelectorAll('button')).find(btn => 
+            btn.querySelector('span.material-symbols-outlined')?.textContent === 'content_copy'
+        );
+        const deleteBtn = Array.from(card.querySelectorAll('button')).find(btn => 
+            btn.querySelector('span.material-symbols-outlined')?.textContent === 'delete'
+        );
 
         editBtn?.addEventListener('click', () => {
             const agentName = card.querySelector('h3').textContent;
@@ -132,12 +148,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper functions
     function createDropdown(options, onSelect) {
+        // Remove any existing dropdowns
+        document.querySelectorAll('.filter-dropdown').forEach(el => el.remove());
+        
         const dropdown = document.createElement('div');
-        dropdown.className = 'absolute z-20 bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg shadow-lg py-2 mt-2';
+        dropdown.className = 'filter-dropdown absolute z-50 bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg shadow-lg py-2 mt-2';
         
         options.forEach(option => {
             const item = document.createElement('button');
-            item.className = 'w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800';
+            item.className = 'w-full text-left px-4 py-2 text-sm text-text-light dark:text-text-dark hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors';
             item.textContent = option;
             item.addEventListener('click', () => {
                 onSelect(option);
@@ -146,11 +165,16 @@ document.addEventListener('DOMContentLoaded', () => {
             dropdown.appendChild(item);
         });
 
-        document.addEventListener('click', (e) => {
-            if (!dropdown.contains(e.target)) {
-                dropdown.remove();
-            }
-        }, { once: true });
+        // Close dropdown when clicking outside
+        setTimeout(() => {
+            const closeHandler = (e) => {
+                if (!dropdown.contains(e.target)) {
+                    dropdown.remove();
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            document.addEventListener('click', closeHandler);
+        }, 0);
 
         return dropdown;
     }
@@ -158,15 +182,30 @@ document.addEventListener('DOMContentLoaded', () => {
     function positionDropdown(dropdown, anchor) {
         document.body.appendChild(dropdown);
         const rect = anchor.getBoundingClientRect();
-        dropdown.style.position = 'absolute';
-        dropdown.style.top = `${rect.bottom + window.scrollY}px`;
+        const dropdownHeight = dropdown.offsetHeight;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        
+        dropdown.style.position = 'fixed';
+        
+        // Position above if not enough space below
+        if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
+            dropdown.style.bottom = `${window.innerHeight - rect.top}px`;
+        } else {
+            dropdown.style.top = `${rect.bottom}px`;
+        }
+        
         dropdown.style.left = `${rect.left}px`;
         dropdown.style.minWidth = `${anchor.offsetWidth}px`;
+        dropdown.style.maxHeight = '300px';
+        dropdown.style.overflowY = 'auto';
     }
 
     function filterAgents() {
         agentCards.forEach(card => {
-            const status = card.querySelector('p:has(span.rounded-full)').textContent;
+            const statusElement = Array.from(card.querySelectorAll('p')).find(p => 
+                p.querySelector('span.rounded-full')
+            );
+            const status = statusElement ? statusElement.textContent : '';
             const capabilities = Array.from(card.querySelectorAll('.flex-wrap span'))
                 .map(span => span.textContent);
             
