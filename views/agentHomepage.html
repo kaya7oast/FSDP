@@ -7,7 +7,7 @@
 
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="../views/css/agentHomepage.css" rel="stylesheet"/>
-    <script src="../views/js/agentHomepage.js" defer></script>
+    
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
@@ -28,22 +28,22 @@
             <nav class="flex flex-col gap-2">
               <a class="flex items-center gap-3 px-4 py-2 rounded-lg bg-primary/20 text-primary transition-colors duration-200" href="#">
                 <span class="material-symbols-outlined">widgets</span>
-                <span class="font-medium">My Agents</span>
+                <span class="font-medium myagent">My Agents</span>
               </a>
 
               <a class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200" href="#">
                 <span class="material-symbols-outlined">add_circle_outline</span>
-                <span class="font-medium">Create New Agent</span>
+                <span class="font-medium newagent">Create New Agent</span>
               </a>
 
               <a class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200" href="#">
                 <span class="material-symbols-outlined">chat_bubble_outline</span>
-                <span class="font-medium">Conversations</span>
+                <span class="font-medium conversation">Conversations</span>
               </a>
 
               <a class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200" href="#">
                 <span class="material-symbols-outlined">settings</span>
-                <span class="font-medium">Settings</span>
+                <span class="font-medium setting">Settings</span>
               </a>
             </nav>
           </aside>
@@ -167,5 +167,6 @@
         </div>
       </div>
     </div>
+    <script src="../js/agentHomepage.js" defer></script>
   </body>
 </html>
