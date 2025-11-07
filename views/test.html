@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+
+<html class="" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Aether AI Agent Builder</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+<script>tailwind.config = {darkMode: "class", theme: {extend: {colors: {primary: "#1313ec", "background-light": "#f6f6f8", "background-dark": "#101022"}, fontFamily: {sans: ["Poppins", "sans-serif"], display: "Manrope"}, borderRadius: {DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px"}}}};</script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-sans text-gray-800 dark:text-white antialiased">
+<div class="relative flex min-h-screen w-full flex-col group/design-root" style="--checkbox-tick-svg: url('data:image/svg+xml,%3csvg viewBox=%270 0 16 16%27 fill=%27rgb(255,255,255)%27 xmlns=%27http://www.w3.org/2000/svg%27%3e%3cpath d=%27M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z%27/%3e%3c/svg%3e'); --select-button-svg: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2724px%27 height=%2724px%27 fill=%27rgb(157,157,185)%27 viewBox=%270 0 256 256%27%3e%3cpath d=%27M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48-48A8,8,0,0,0,85.66,85.66Z%27%3e%3c/path%3e%3c/svg%3e');">
+<header class="flex items-center justify-between whitespace-nowrap px-4 sm:px-6 md:px-10 py-4 border-b border-gray-200 dark:border-b-[#282839]">
+<div class="flex items-center gap-4 text-gray-900 dark:text-white">
+<div class="size-6 text-primary">
+<svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M24 4H6V17.3333V30.6667H24V44H42V30.6667V17.3333H24V4Z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+<h2 class="text-xl font-bold leading-tight tracking-[-0.015em]">Aether</h2>
+</div>
+<div class="flex flex-1 justify-end gap-2">
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background-light dark:focus:ring-offset-background-dark">
+<span class="truncate">Login</span>
+</button>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-gray-200 dark:bg-[#282839] text-gray-800 dark:text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-gray-300 dark:hover:bg-[#3a3a4f] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background-light dark:focus:ring-offset-background-dark">
+<span class="truncate">Sign Up</span>
+</button>
+</div>
+</header>
+<main class="flex-1 w-full max-w-4xl mx-auto px-4 py-8 sm:px-6 sm:py-12">
+<div class="flex flex-col gap-10">
+<div class="flex flex-wrap justify-between gap-3 text-center sm:text-left">
+<div class="flex w-full flex-col gap-2">
+<p class="text-gray-900 dark:text-white text-4xl sm:text-5xl font-black leading-tight tracking-[-0.033em]">Build Your Aether Agent</p>
+<p class="text-gray-500 dark:text-[#9d9db9] text-lg font-normal leading-normal">Configure your AI's personality, capabilities, and instructions.</p>
+</div>
+</div>
+<div class="w-full bg-white dark:bg-[#1C1C27] rounded-xl shadow-sm border border-gray-200 dark:border-[#282839] p-6 sm:p-8">
+<form class="flex flex-col gap-8">
+<div class="flex flex-col gap-2">
+<label class="text-gray-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]" for="personality-select">Select a Personality</label>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-[#3b3b54] bg-background-light dark:bg-[#111118] focus:border-primary dark:focus:border-primary h-14 bg-[image:--select-button-svg] placeholder:text-gray-400 dark:placeholder:text-[#9d9db9] p-[15px] text-base font-normal leading-normal" id="personality-select">
+<option>Friendly &amp; Humorous</option>
+<option>Professional &amp; Helpful</option>
+<option>Serious &amp; Analytical</option>
+</select>
+</div>
+<div class="flex flex-col gap-4">
+<h2 class="text-gray-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Choose Capabilities</h2>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+<label class="flex items-center gap-x-3 py-2 cursor-pointer">
+<input checked="" class="form-checkbox h-5 w-5 rounded border-gray-400 dark:border-[#3b3b54] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary checked:bg-[image:--checkbox-tick-svg] focus:ring-primary focus:ring-offset-background-light dark:focus:ring-offset-white/10 dark:focus:ring-offset-2" type="checkbox"/>
+<p class="text-gray-800 dark:text-white text-base font-normal leading-normal">Web Search</p>
+</label>
+<label class="flex items-center gap-x-3 py-2 cursor-pointer">
+<input checked="" class="form-checkbox h-5 w-5 rounded border-gray-400 dark:border-[#3b3b54] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary checked:bg-[image:--checkbox-tick-svg] focus:ring-primary focus:ring-offset-background-light dark:focus:ring-offset-white/10 dark:focus:ring-offset-2" type="checkbox"/>
+<p class="text-gray-800 dark:text-white text-base font-normal leading-normal">Summarization</p>
+</label>
+<label class="flex items-center gap-x-3 py-2 cursor-pointer">
+<input class="form-checkbox h-5 w-5 rounded border-gray-400 dark:border-[#3b3b54] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary checked:bg-[image:--checkbox-tick-svg] focus:ring-primary focus:ring-offset-background-light dark:focus:ring-offset-white/10 dark:focus:ring-offset-2" type="checkbox"/>
+<p class="text-gray-800 dark:text-white text-base font-normal leading-normal">Sentiment Analysis</p>
+</label>
+<label class="flex items-center gap-x-3 py-2 cursor-pointer">
+<input class="form-checkbox h-5 w-5 rounded border-gray-400 dark:border-[#3b3b54] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary checked:bg-[image:--checkbox-tick-svg] focus:ring-primary focus:ring-offset-background-light dark:focus:ring-offset-white/10 dark:focus:ring-offset-2" type="checkbox"/>
+<p class="text-gray-800 dark:text-white text-base font-normal leading-normal">Access Weather API</p>
+</label>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-gray-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]" for="custom-prompt">Define Your Prompt</label>
+<textarea class="form-textarea flex w-full min-w-0 flex-1 resize-y overflow-hidden rounded-lg text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-[#3b3b54] bg-background-light dark:bg-[#111118] focus:border-primary dark:focus:border-primary placeholder:text-gray-400 dark:placeholder:text-[#9d9db9] p-[15px] text-base font-normal leading-normal" id="custom-prompt" placeholder="e.g., 'You are a helpful assistant for a marketing team. Always respond in a professional tone and use markdown for formatting...'" rows="6"></textarea>
+<p class="text-sm text-gray-500 dark:text-gray-400 pt-1">Provide detailed instructions for your agent's behavior and response style.</p>
+</div>
+<div class="flex justify-end pt-4">
+<button class="flex min-w-[120px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background-light dark:focus:ring-offset-background-dark">
+<span class="truncate">Deploy Agent</span>
+</button>
+</div>
+</form>
+</div>
+</div>
+</main>
+</div>
+</body></html>
