@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose"; // ✅ Must import mongoose
 
 import connectDB from "./dbConfig.js";
-import { chatWithAgent } from "./agent/controllers/agentController.js";
+import { chatWithAgent, test } from "./agent/controllers/agentController.js";
 import * as dbAgentController from "./agentDB/controllers/agentDBController.js";
 
 dotenv.config();
@@ -22,9 +22,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
-// Serve static HTML/CSS/JS
-app.use(express.static(path.join(__dirname, "views")));
-app.use(express.static(path.join(__dirname, "public")));
+
 
 // HTML routes
 app.get("/agent-builder", (req, res) =>
@@ -39,6 +37,9 @@ app.get("/dashboard", (req, res) =>
 app.get("/agent-conversation", (req, res) =>
   res.sendFile(path.join(__dirname, "views", "agentConversation.html"))
 );
+// OpenAI agent API route
+app.post("/api/agents/:agentId/chat", chatWithAgent);
+app.get("/api/agents/test", test);
 
 // MongoDB agentDB API routes
 app.get("/api/agents", async (req, res) => {
@@ -68,8 +69,7 @@ app.post("/api/agents", async (req, res) => {
   }
 });
 
-// OpenAI agent API route
-app.post("/api/agents/:agentId/chat", chatWithAgent);
+
 
 // Test MongoDB connection route
 app.get("/test-db", async (req, res) => {
@@ -80,6 +80,10 @@ app.get("/test-db", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Serve static HTML/CSS/JS
+app.use(express.static(path.join(__dirname, "views")));
+app.use(express.static(path.join(__dirname, "public")));
 
 // Connect to MongoDB and start server
 connectDB();
