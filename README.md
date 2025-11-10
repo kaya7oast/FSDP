@@ -9,8 +9,6 @@ Designing and Implementing Human-Centric Interfaces for  Custom Agent Management
 | `/api/conversation/:userId/:agentId/summarize` | **POST** | Summarizes all messages between a user and an agent, then saves summary in DB. | _No body required_ | ```json { "message": "Conversation summarized successfully", "summary": "The user discussed AI abilities and got an explanation." } ``` |
 | `/api/agents` | **GET** | Retrieves all agents stored in MongoDB. | – | ```json [ { "_id": "672c1a...", "AgentName": "Word Master", "Specialization": "Language Understanding" } ] ``` |
 | `/api/agents` | **POST** | Adds a new agent to the database. | ```json { "AgentID": "A001", "AgentName": "Word Master", "Description": "Helpful assistant", "Specialization": "Language", "Personality": { "Tone": "Friendly" } } ``` | ```json { "_id": "672c1a...", "AgentName": "Word Master", "createdAt": "2025-11-09T07:00:00Z" } ``` |
-| `/api/agents/active` | **GET** | Fetches only active agents from the database. | – | ```json [ { "AgentName": "Word Master", "active": true } ] ``` |
-| `/test-db` | **GET** | Tests MongoDB connection and lists available collections. | – | ```json { "collections": [ { "name": "agents" }, { "name": "conversations" } ] } ``` |
 
 ---
 
