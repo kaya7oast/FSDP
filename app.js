@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose"; // ✅ Must import mongoose
 
 import connectDB from "./dbConfig.js";
-import { chatWithAgent, test } from "./agent/controllers/agentController.js";
+import { chatWithAgent,summarizeConversation, test } from "./agent/controllers/agentController.js";
 import * as dbAgentController from "./agentDB/controllers/agentDBController.js";
 
 dotenv.config();
@@ -40,6 +40,8 @@ app.get("/agent-conversation", (req, res) =>
 // OpenAI agent API route
 app.post("/api/agents/:agentId/chat", chatWithAgent);
 app.get("/api/agents/test", test);
+app.post("/api/conversation/:userId/:agentId/summarize", summarizeConversation);
+
 
 // MongoDB agentDB API routes
 app.get("/api/agents", async (req, res) => {
