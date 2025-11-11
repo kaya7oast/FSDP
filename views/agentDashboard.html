@@ -6,8 +6,8 @@
     <title>AI Agent Management</title>
 
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="../views/css/agentDashboard.css" rel="stylesheet" />
-    <script src="../js/agentHomepage.js" defer></script>
+    <link href="../public/css/agentDashboard.css" rel="stylesheet" />
+    <script src="../public/js/agentDashboard.js" defer></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet" />
@@ -20,13 +20,13 @@
           <div class="max-w-7xl mx-auto flex items-center justify-between whitespace-nowrap h-16">
             <div class="flex items-center gap-4 text-text-light dark:text-text-dark">
               <span class="material-symbols-outlined text-primary text-3xl">hub</span>
-              <h2 class="text-xl font-bold leading-tight tracking-[-0.015em]">AI Agent Platform</h2>
+              <h2 class="text-xl font-bold leading-tight tracking-[-0.015em]"><a href="/views/agentHomepage.html">AI Agent Platform</a></h2>
             </div>
 
             <div class="hidden md:flex items-center gap-9">
-              <a class="text-sm font-medium leading-normal text-text-light dark:text-text-dark hover:text-primary dark:hover:text-primary transition-colors" href="#">Dashboard</a>
-              <a class="text-sm font-medium leading-normal text-primary dark:text-primary font-semibold" href="#">Agents</a>
-              <a class="text-sm font-medium leading-normal text-text-light dark:text-text-dark hover:text-primary dark:hover:text-primary transition-colors" href="#">Settings</a>
+              <a class="text-sm font-medium leading-normal text-primary dark:text-primary font-semibold" href="/views/agentDashboard.html">Dashboard</a>
+              <a class="text-sm font-medium leading-normal text-text-light dark:text-text-dark hover:text-primary dark:hover:text-primary transition-colors" href="/views/agentHomepage.html">Agents</a>
+              <a class="text-sm font-medium leading-normal text-text-light dark:text-text-dark hover:text-primary dark:hover:text-primary transition-colors" href="/views/agentConversation.html">Conversations</a>
             </div>
 
             <div class="flex items-center gap-4">
@@ -45,9 +45,9 @@
           <div class="max-w-7xl mx-auto">
             <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
               <p class="text-text-light dark:text-text-dark text-4xl font-black leading-tight tracking-[-0.033em] min-w-72">Agent Management</p>
-              <button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors shadow-sm">
+              <a href="./agentBuilder.html" class="flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors shadow-sm" role="button" aria-label="Create New Agent">
                 <span class="truncate">Create New Agent</span>
-              </button>
+              </a>
             </div>
 
             <div class="flex flex-col md:flex-row gap-4 mb-6">
@@ -63,12 +63,12 @@
               </div>
 
               <div class="flex items-center gap-3 overflow-x-auto pb-2">
-                <button class="flex h-12 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark pl-4 pr-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <button id="statusFilterBtn" class="flex h-12 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark pl-4 pr-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                   <p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal">Status: All</p>
                   <span class="material-symbols-outlined text-inactive">expand_more</span>
                 </button>
 
-                <button class="flex h-12 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark pl-4 pr-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <button id="capabilitiesFilterBtn" class="flex h-12 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark pl-4 pr-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                   <p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal">Capabilities: All</p>
                   <span class="material-symbols-outlined text-inactive">expand_more</span>
                 </button>
