@@ -48,12 +48,15 @@ const agentSchema = new mongoose.Schema({
   Integration: {
     ConnectedAPIs: [{ type: String }],
     WebhookURL: { type: String },
-  }
+  },
+  status: { type: String, enum: ["active", "deleted"], default: "active" },
 },
 {
   collection: "Agent", // 👈 ensures it uses your exact MongoDB collection name
   versionKey: false
-});
+},
+
+);
 
 
 

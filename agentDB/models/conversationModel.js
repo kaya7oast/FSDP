@@ -12,6 +12,7 @@ const conversationSchema = new mongoose.Schema({
   agentId: { type: String, required: true },
   messages: [messageSchema],
   latestSummary: { type: String, default: "" },
+  status : { type: String, enum: ["active", "deleted"], default: "active" },
 });
 
 export default mongoose.model("Conversation", conversationSchema);
