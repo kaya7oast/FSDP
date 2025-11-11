@@ -17,20 +17,8 @@ const agentSchema = new mongoose.Schema({
 
   KnowledgeBase: {
     Type: { type: String },
-    SourceURL: { type: String },
   },
 
-  MemorySettings: {
-    Enabled: { type: Boolean, default: false },
-    RetentionPolicy: { type: String },
-    ContextWindow: { type: Number },
-  },
-
-  Status: { type: String },
-  LastActive: { type: Date },
-  TasksCompleted: { type: Number },
-  Region: { type: String },
-  Version: { type: String },
 
   CreatedAt: { type: Date, default: Date.now },
   UpdatedAt: { type: Date, default: Date.now },
@@ -40,20 +28,9 @@ const agentSchema = new mongoose.Schema({
     UserName: { type: String },
   },
 
-  Analytics: {
-    AverageResponseTime: { type: Number },
-    SatisfactionScore: { type: Number },
-  },
-
-  Integration: {
-    ConnectedAPIs: [{ type: String }],
-    WebhookURL: { type: String },
-  }
+  status: { type: String, enum: ["active", "deleted"], default: "active" },
 },
-{
-  collection: "Agent", // 👈 ensures it uses your exact MongoDB collection name
-  versionKey: false
-});
+);
 
 
 

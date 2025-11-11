@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { getAgentById } from "../models/agentModel.js";
 import Conversation from "../../agentDB/models/conversationModel.js";
+import { generateAIResponse } from "../../services/aiService.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -9,56 +10,58 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export const chatWithAgent = async (req, res) => {
   const { agentId } = req.params;
-  const { userId, message } = req.body; // make sure your frontend sends userId
+  const { userId, message, provider = "gemini" } = req.body;
 
   try {
     const agent = await getAgentById(agentId);
     if (!agent) return res.status(404).json({ error: "Agent not found" });
 
-    // const conversationId = `${userId}CONV${agentId}`;
-    const conversationId = `${0}CONV${0}`;
-
+    const conversationId = `${userId}CONV${agentId}`;
     let conversation = await Conversation.findOne({ conversationId });
 
-    // Create a new conversation if it doesn't exist
     if (!conversation) {
       conversation = new Conversation({
         conversationId,
         userId,
         agentId,
+        provider,
         messages: [
           {
             role: "system",
-            content: `You are ${agent.name}, a ${agent.personality}. Your abilities: ${agent.capabilities.join(", ")}.`,
+            // content: `You are ${agent.name}, a ${agent.personality}. Your abilities: ${agent.capabilities.join(", ")}.`,
+            content: `You are Speech Master, a Smart. Your abilities: 10 words only.`,
+            createdAt: new Date().toISOString(),
           },
         ],
       });
     }
 
-    // Add user message
+    // Add user message with timestamp
     conversation.messages.push({
       role: "user",
       content: message,
+      createdAt: new Date().toISOString(),
     });
 
     const messagesToSend = conversation.messages.slice(-10);
 
-    // Send to OpenAI
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5-nano",
-      messages: messagesToSend,
-    });
+    // Generate AI reply
+    const replyText = await generateAIResponse(provider, messagesToSend);
 
-    const reply = completion.choices[0].message.content;
+    const reply = {
+      content: replyText,
+      createdAt: new Date().toISOString(),
+    };
 
-    // Add assistant reply
+    // Save assistant reply with timestamp
     conversation.messages.push({
       role: "assistant",
-      content: reply,
+      ...reply,
     });
 
     await conversation.save();
 
+    // Return reply with timestamp
     res.json({ reply });
   } catch (err) {
     console.error(err);
@@ -67,42 +70,109 @@ export const chatWithAgent = async (req, res) => {
 };
 
 
+
+
 export const summarizeConversation = async (req, res) => {
-  console.log("Summarize conversation endpoint called");
+  const { userId, agentId, provider = "openai" } = req.params; // provider optional
+  // const { userId, agentId, provider = "openai" } = req.body; // provider optional
+
   try {
-    const { userId, agentId } = req.params; // ✅ get from URL, not body
     const conversationId = `${userId}CONV${agentId}`;
-
     const conversation = await Conversation.findOne({ conversationId });
-    if (!conversation)
+
+    if (!conversation) {
       return res.status(404).json({ error: "Conversation not found" });
+    }
 
-    // Summarize the conversation using OpenAI
-    const summaryCompletion = await openai.chat.completions.create({
-      model: "gpt-5-nano",
-      messages: [
-        { role: "system", content: "Summarize the following conversation concisely." },
-        ...conversation.messages,
-      ],
-    });
+    // Use AI to summarize the conversation
+    const summary = await generateAIResponse(provider, [
+      { role: "system", content: "Summarize the following conversation concisely." },
+      ...conversation.messages,
+    ]);
 
-    const summary = summaryCompletion.choices[0].message.content;
+    // Save latest summary in the conversation
     conversation.latestSummary = summary;
     await conversation.save();
 
-    res.json({
-      message: "Conversation summarized successfully",
-      summary,
-    });
+    res.json({ message: "Conversation summarized", summary });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+export const getConversation = async (req, res) => {
+  const { userId, agentId } = req.params;
+  try {
+    const conversationId = `${userId}CONV${agentId}`;
+    const conversation = await Conversation.findOne({ conversationId });
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+    if (conversation.status === "deleted") {
+      return res.status(410).json({ error: "Conversation has been deleted" });
+    }
+    res.json({ conversation });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
 
+export const getAllConversations = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const conversations = await Conversation.find({ userId, status: "active" });
+    res.json({ conversations });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
 
+export const changeProvider = async (req, res) => {
+  const { userId, agentId } = req.params;
+  const { newProvider } = req.body;
 
+  try {
+    const conversationId = `${userId}CONV${agentId}`;
+    const conversation = await Conversation.findOneAndUpdate(
+      { conversationId },
+      { provider: newProvider },
+      { new: true }
+    );
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    res.json({ message: "Provider changed successfully", conversation });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const deleteConversation = async (req, res) => {
+  const { userId, agentId } = req.params;
+  try {
+    const conversationId = `${userId}CONV${agentId}`;
+    const conversation = await Conversation.findOneAndUpdate(
+      { conversationId },
+      { status: "deleted" },
+      { new: true }
+    );
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    res.json({ message: "Conversation deleted", conversation });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
 
 export const test = (req, res) => {
   console.log("Test endpoint called");
