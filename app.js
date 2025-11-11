@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose"; // ✅ Must import mongoose
 
 import connectDB from "./dbConfig.js";
-import { chatWithAgent,summarizeConversation, test } from "./agent/controllers/agentController.js";
+import { chatWithAgent,summarizeConversation,getConversation,deleteConversation,getAllConversations, changeProvider, test } from "./agent/controllers/agentController.js";
 import * as dbAgentController from "./agentDB/controllers/agentDBController.js";
 
 dotenv.config();
@@ -37,10 +37,14 @@ app.get("/dashboard", (req, res) =>
 app.get("/agent-conversation", (req, res) =>
   res.sendFile(path.join(__dirname, "views", "agentConversation.html"))
 );
-// OpenAI agent API route
+//agent API route conversations
 app.post("/api/agents/:agentId/chat", chatWithAgent);
 app.get("/api/agents/test", test);
 app.post("/api/conversation/:userId/:agentId/summarize", summarizeConversation);
+app.get("/api/conversation/:userId/:agentId", getConversation);
+app.post("/api/conversation/:userId/:agentId", deleteConversation);
+app.get("/api/conversations/:userId", getAllConversations);
+app.put("/api/conversation/:userId/:agentId/change-provider", changeProvider);
 
 
 // MongoDB agentDB API routes
@@ -70,7 +74,14 @@ app.post("/api/agents", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+app.post("/api/agents/:agentId/delete", async (req, res) => {
+  try {
+    const deletedAgent = await dbAgentController.deleteAgent(req.params.agentId);
+    res.json(deletedAgent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 
 // Test MongoDB connection route

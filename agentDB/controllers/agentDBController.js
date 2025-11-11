@@ -15,3 +15,15 @@ export const addAgent = async (agentData) => {
   const agent = new Agent(agentData);
   return await agent.save();
 };
+
+export const getAgentById = async (agentId) => {
+  return await Agent.findById(agentId);
+};
+
+export const updateAgent = async (agentId, updateData) => {
+  return await Agent.findByIdAndUpdate(agentId, updateData, { new: true });
+}
+export const deleteAgent = async (agentId) => {
+  return await Agent.findByIdAndUpdate(agentId, { Status: "Deleted" }, { new: true });
+}
+ 
