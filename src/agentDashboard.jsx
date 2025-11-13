@@ -7,48 +7,7 @@ function AgentDashboard() {
   const [viewMode, setViewMode] = useState('grid');
   const [darkMode, setDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [agents, setAgents] = useState([
-    {
-      id: 1,
-      title: "Customer Support Bot",
-      icon: "support_agent",
-      status: "Active",
-      tags: ["NLP", "Customer Support"],
-      updated: "2 days ago",
-      interactions: 450000,
-      lastActive: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-    },
-    {
-      id: 2,
-      title: "Data Analyst",
-      icon: "bar_chart",
-      status: "Active",
-      tags: ["Data Analysis", "Reporting"],
-      updated: "5 days ago",
-      interactions: 312000,
-      lastActive: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
-    },
-    {
-      id: 3,
-      title: "Image Generator",
-      icon: "image",
-      status: "Archived",
-      tags: ["Image Generation", "Creative"],
-      updated: "1 month ago",
-      interactions: 125000,
-      lastActive: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    },
-    {
-      id: 4,
-      title: "Code Assistant",
-      icon: "code",
-      status: "Active",
-      tags: ["Code Generation", "Developer Tool"],
-      updated: "8 hours ago",
-      interactions: 289000,
-      lastActive: new Date(Date.now() - 8 * 60 * 60 * 1000)
-    }
-  ]);
+  const [agents, setAgents] = useState([]);
 
   // Apply dark mode class to root div
   const rootClassName = darkMode ? 'dark' : '';
@@ -71,12 +30,17 @@ function AgentDashboard() {
     .sort((a, b) => b.interactions - a.interactions)
     .slice(0, 3);
 
-  const handleDeleteAgent = (id) => {
-    const agent = agents.find(a => a.id === id);
-    if (window.confirm(`Are you sure you want to delete ${agent.title}?`)) {
-      setAgents(agents.filter(a => a.id !== id));
+  const handleDeleteAgent = async (id) => {
+  const agent = agents.find(a => a._id === id);
+  if (window.confirm(`Are you sure you want to delete ${agent.title}?`)) {
+    try {
+      await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+      setAgents(agents.filter(a => a._id !== id));
+    } catch (err) {
+      console.error("Error deleting agent:", err);
     }
-  };
+  }
+};
 
   const handleDuplicateAgent = (id) => {
     const agent = agents.find(a => a.id === id);
@@ -90,40 +54,62 @@ function AgentDashboard() {
     setAgents([...agents, newAgent]);
   };
 
-  const handleEditAgent = (id) => {
-    const agent = agents.find(a => a.id === id);
-    const newName = prompt(`Edit agent name:`, agent.title);
-    if (newName && newName.trim()) {
-      setAgents(agents.map(a => 
-        a.id === id ? { ...a, title: newName.trim(), updated: "Just now" } : a
-      ));
+  const handleEditAgent = async (id) => {
+  const agent = agents.find(a => a._id === id);
+  const newName = prompt(`Edit agent name:`, agent.title);
+  if (newName && newName.trim()) {
+    try {
+      const res = await fetch(`${API_URL}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newName.trim(), updated: "Just now" })
+      });
+      const updated = await res.json();
+      setAgents(agents.map(a => (a._id === id ? updated : a)));
+    } catch (err) {
+      console.error("Error updating agent:", err);
     }
-  };
+  }
+};
+  const handleToggleStatus = async (id) => {
+  const agent = agents.find(a => a._id === id);
+  const newStatus = agent.Status === "Active" ? "Archived" : "Active";
+  try {
+    const res = await fetch(`${API_URL}/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ Status: newStatus })
+    });
+    const updated = await res.json();
+    setAgents(agents.map(a => (a._id === id ? updated : a)));
+  } catch (err) {
+    console.error("Error toggling status:", err);
+  }
+};
 
-  const handleToggleStatus = (id) => {
-    setAgents(agents.map(agent => 
-      agent.id === id 
-        ? { ...agent, status: agent.status === 'Active' ? 'Archived' : 'Active', updated: "Just now" }
-        : agent
-    ));
-  };
-
-  const handleCreateAgent = () => {
-    const name = prompt("Enter new agent name:");
-    if (name && name.trim()) {
-      const newAgent = {
-        id: Math.max(...agents.map(a => a.id)) + 1,
-        title: name.trim(),
-        icon: "smart_toy",
-        status: "Active",
-        tags: ["General"],
-        updated: "Just now",
-        interactions: 0,
-        lastActive: new Date()
-      };
-      setAgents([...agents, newAgent]);
+  const handleCreateAgent = async () => {
+  const name = prompt("Enter new agent name:");
+  if (name && name.trim()) {
+    const newAgent = {
+      title: name.trim(),
+      Status: "Active",
+      tags: ["General"],
+      interactions: 0,
+      updated: "Just now"
+    };
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newAgent)
+      });
+      const created = await res.json();
+      setAgents([...agents, created]);
+    } catch (err) {
+      console.error("Error creating agent:", err);
     }
-  };
+  }
+};
 
   return (
     <div className={rootClassName}>
@@ -262,14 +248,18 @@ function NotificationDropdown({ onClose }) {
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        onClose();
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
+  fetchAgents();
+  }, []);
+
+  const fetchAgents = async () => {
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    setAgents(data);
+  } catch (error) {
+    console.error("Failed to fetch agents:", error);
+  }
+};
 
   return (
     <div 
