@@ -1,6 +1,8 @@
 // AgentDashboard.jsx
 import { useState, useRef, useEffect } from "react";
-const API_BASE = "/api/agents";
+// const API_BASE = "/api/agents";
+const API_BASE = "http://localhost:3000/api/agents";
+
 function AgentDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -21,8 +23,11 @@ function AgentDashboard() {
   const fetchAgents = async () => {
     try {
       const res = await fetch(API_BASE);
+      
       if (!res.ok) throw new Error("Failed to fetch agents");
       const data = await res.json();
+      
+      alert(`Fetched ${Array.isArray(data) ? data.length : 0} agents.`);
       setAgents(Array.isArray(data) ? data : []);
       return data;
     } catch (err) {
