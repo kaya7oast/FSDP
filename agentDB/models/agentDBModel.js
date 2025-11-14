@@ -28,7 +28,7 @@ const agentSchema = new mongoose.Schema({
     UserName: { type: String },
   },
 
-  status: { type: String, enum: ["active", "deleted"], default: "active" },
+  status: { type: String, enum: ["active", "archived", "deleted"], default: "active" },
 },
 );
 
