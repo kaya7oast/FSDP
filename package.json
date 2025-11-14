@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start-node":"node app.js",
+    "start-node": "node app.js",
     "start": "node app.js"
   },
   "dependencies": {

@@ -21,7 +21,5 @@ Designing and Implementing Human-Centric Interfaces for  Custom Agent Management
 
 ---
 
-Would you like me to make a **shorter “summary table”** (only Endpoint | Method | Description, no examples) for the top of the README too? It’s common to have both.
-
 
 git

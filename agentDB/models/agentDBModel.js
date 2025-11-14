@@ -1,36 +1,55 @@
 import mongoose from "mongoose";
 
 const agentSchema = new mongoose.Schema({
-  AgentID: { type: String, required: true },
+  AgentID: { type: String, unique: true },  
   AgentName: { type: String, required: true },
-  Description: { type: String },
-
-  Specialization: { type: String },
+  Description: String,
+  Specialization: String,
 
   Personality: {
-    Tone: { type: String },
-    LanguageStyle: { type: String },
-    Emotion: { type: String },
+    Tone: String,
+    LanguageStyle: String,
+    Emotion: String,
   },
 
-  Capabilities: [{ type: String }],
+  Capabilities: [String],
 
   KnowledgeBase: {
-    Type: { type: String },
+    Type: String,
   },
-
 
   CreatedAt: { type: Date, default: Date.now },
   UpdatedAt: { type: Date, default: Date.now },
 
   Owner: {
-    UserID: { type: String },
-    UserName: { type: String },
+    UserID: String,
+    UserName: String,
   },
 
-  status: { type: String, enum: ["active", "archived", "deleted"], default: "active" },
-},
-);
+
+  status: { type: String, enum: ["active", "deleted"], default: "active" }
+});
+
+
+// Auto-generate AgentID: A001, A002, A003...
+agentSchema.pre("save", async function (next) {
+  if (this.AgentID) return next(); // skip if already set
+
+  const lastAgent = await this.constructor
+    .findOne({}, {}, { sort: { CreatedAt: -1 } });
+
+  let nextNumber = 1;
+
+  if (lastAgent && lastAgent.AgentID) {
+    const num = parseInt(lastAgent.AgentID.replace("A", ""));
+    nextNumber = num + 1;
+  }
+
+  this.AgentID = "" + nextNumber.toString().padStart(3, "0");
+  next();
+});
+
+
 
 
 
