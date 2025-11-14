@@ -19,15 +19,18 @@ function AgentDashboard() {
   }, []);
 
   const fetchAgents = async () => {
-  try {
-    const res = await fetch(API_BASE);
-    if (!res.ok) throw new Error("Failed to fetch agents");
-    return await res.json();
-  } catch (err) {
-    console.error(err);
-    return [];
-  }
-};
+    try {
+      const res = await fetch(API_BASE);
+      if (!res.ok) throw new Error("Failed to fetch agents");
+      const data = await res.json();
+      setAgents(Array.isArray(data) ? data : []);
+      return data;
+    } catch (err) {
+      console.error(err);
+      setAgents([]);
+      return [];
+    }
+  };
 
   // normalize helpers
   const getName = (agent) => (agent?.AgentName ?? "Unnamed Agent");
@@ -81,17 +84,19 @@ function AgentDashboard() {
     };
 
     try {
-    const res = await fetch(API_BASE, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(agentData),
-    });
+      const res = await fetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newAgentPayload),
+      });
 
-    if (!res.ok) throw new Error("Failed to create agent");
-    return await res.json();
+      if (!res.ok) throw new Error("Failed to create agent");
+      const created = await res.json();
+      setAgents((prev) => [...prev, created]);
+      return created;
     } catch (err) {
-    console.error(err);
-    return null;
+      console.error(err);
+      return null;
     }
   };
 
@@ -105,14 +110,16 @@ function AgentDashboard() {
       return;
 
     try {
-    const res = await fetch(`${API_BASE}/${agentId}/delete`, {
-      method: "POST",
-    });
-    if (!res.ok) throw new Error("Failed to delete agent");
-    return await res.json();
+      const res = await fetch(`${API_BASE}/${_id}/delete`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed to delete agent");
+      const deleted = await res.json();
+      setAgents((prev) => prev.filter((a) => a._id !== _id));
+      return deleted;
     } catch (err) {
-    console.error(err);
-    return null;
+      console.error(err);
+      return null;
     }
   };
 
@@ -129,7 +136,7 @@ function AgentDashboard() {
     };
 
     try {
-      const res = await fetch(API_URL, {
+      const res = await fetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dupPayload),
@@ -158,7 +165,7 @@ function AgentDashboard() {
     };
 
     try {
-      const res = await fetch(`${API_URL}/${_id}`, {
+      const res = await fetch(`${API_BASE}/${_id}`, {
         method: "PUT", // ensure server supports this route
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatePayload),
@@ -183,7 +190,7 @@ function AgentDashboard() {
     const newStatus = current === "active" ? "archived" : "active";
 
     try {
-      const res = await fetch(`${API_URL}/${_id}`, {
+      const res = await fetch(`${API_BASE}/${_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ Status: newStatus, UpdatedAt: new Date().toISOString() }),
