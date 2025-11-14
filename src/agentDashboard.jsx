@@ -32,14 +32,14 @@ function AgentDashboard() {
       return data;
     } catch (err) {
       console.error(err);
-      setAgents([]);
+      setAgents([]);  
       return [];
     }
   };
 
   // normalize helpers
   const getName = (agent) => (agent?.AgentName ?? "Unnamed Agent");
-  const getStatus = (agent) => (agent?.Status ?? agent?.status ?? "unknown");
+  const getStatus = (agent) => (agent?.status ?? agent?.Status ?? "active");
   const getCapabilities = (agent) => agent?.Capabilities ?? [];
 
   // Filtered list
@@ -77,15 +77,42 @@ function AgentDashboard() {
 
   // CREATE
   const handleCreateAgent = async () => {
-    const name = prompt("Enter new agent name:");
-    if (!name || !name.trim()) return;
+    const AgentName = prompt("Enter agent name:");
+    if (!AgentName || !AgentName.trim()) return alert("Agent name is required.");
 
-    // Build an object matching your backend fields
+    const Description = prompt("Enter agent description:") || "";
+    const Specialization = prompt("Enter specialization (e.g., 'Technical Support'):") || "";
+
+    let CapabilitiesInput = prompt(
+      "Enter capabilities separated by commas:\nExample: Diagnose issues, Install software"
+    );
+    const Capabilities = CapabilitiesInput
+      ? CapabilitiesInput.split(",").map((c) => c.trim()).filter(Boolean)
+      : [];
+
+    // Personality fields (optional)
+    const Tone = prompt("Enter personality tone (optional, e.g., 'Professional'):") || "";
+    const LanguageStyle = prompt("Enter language style (optional, e.g., 'Formal'):") || "";
+    const Emotion = prompt("Enter emotion tone (optional, e.g., 'Empathetic'):") || "";
+
+    // Generate AgentID
+    const AgentID = `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     const newAgentPayload = {
-      AgentName: name.trim(),
-      Status: "active", // match your DB sample (lowercase). Adjust if you use "Active"
-      Capabilities: ["General"],
-      Description: "",
+      AgentID,
+      AgentName: AgentName.trim(),
+      Description,
+      Specialization,
+      Capabilities,
+      Personality: {
+        Tone: Tone || undefined,
+        LanguageStyle: LanguageStyle || undefined,
+        Emotion: Emotion || undefined,
+      },
+      KnowledgeBase: {
+        Type: "General",
+      },
+      status: "active", // matches schema enum
     };
 
     try {
@@ -96,14 +123,18 @@ function AgentDashboard() {
       });
 
       if (!res.ok) throw new Error("Failed to create agent");
-      const created = await res.json();
-      setAgents((prev) => [...prev, created]);
-      return created;
+
+      const createdAgent = await res.json();
+      setAgents((prev) => [...prev, createdAgent]);
+      alert("Agent created successfully!");
+      return createdAgent;
     } catch (err) {
-      console.error(err);
+      console.error("Error creating agent:", err);
+      alert("Failed to create agent.");
       return null;
     }
   };
+
 
   // DELETE (your server offers POST /api/agents/:agentId/delete)
   const handleDeleteAgent = async (_id) => {
@@ -134,10 +165,14 @@ function AgentDashboard() {
     if (!agent) return;
 
     const dupPayload = {
+      AgentID: `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       AgentName: `${getName(agent)} (Copy)`,
-      Status: getStatus(agent),
+      status: getStatus(agent),
       Capabilities: getCapabilities(agent),
       Description: agent?.Description ?? "",
+      Specialization: agent?.Specialization ?? "",
+      Personality: agent?.Personality ?? { Tone: "", LanguageStyle: "", Emotion: "" },
+      KnowledgeBase: agent?.KnowledgeBase ?? { Type: "General" },
     };
 
     try {
@@ -198,7 +233,7 @@ function AgentDashboard() {
       const res = await fetch(`${API_BASE}/${_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ Status: newStatus, UpdatedAt: new Date().toISOString() }),
+        body: JSON.stringify({ status: newStatus, UpdatedAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error(`Toggle failed: ${res.status}`);
       const updated = await res.json();
@@ -490,8 +525,8 @@ function FilterDropdown({ label, options, onSelect }) {
 }
 
 function AgentCard({ agent, onEdit, onDuplicate, onDelete, onToggleStatus }) {
-  const isActive = String(agent?.Status || agent?.status || "").toLowerCase() === "active";
-  const isArchived = String(agent?.Status || agent?.status || "").toLowerCase() === "archived";
+  const isActive = String(agent?.status || agent?.Status || "").toLowerCase() === "active";
+  const isArchived = String(agent?.status || agent?.Status || "").toLowerCase() === "archived";
   const caps = agent?.Capabilities ?? [];
 
   const formattedUpdated = agent?.UpdatedAt ? new Date(agent.UpdatedAt).toLocaleString() : agent?.CreatedAt ? new Date(agent.CreatedAt).toLocaleString() : "—";
@@ -507,7 +542,7 @@ function AgentCard({ agent, onEdit, onDuplicate, onDelete, onToggleStatus }) {
             <h3 className="font-bold text-lg">{agent?.AgentName ?? "Unnamed Agent"}</h3>
             <button onClick={onToggleStatus} className={`text-sm font-medium flex items-center gap-1.5 hover:opacity-80 transition-opacity ${isActive ? "text-success" : "text-inactive"}`} title={`Click to ${isActive ? "archive" : "activate"}`}>
               <span className={`w-2 h-2 rounded-full ${isActive ? "bg-success" : "bg-inactive"}`}></span>
-              {agent?.Status ?? agent?.status ?? "unknown"}
+              {agent?.status ?? agent?.Status ?? "unknown"}
             </button>
           </div>
         </div>

@@ -83,6 +83,25 @@ app.post("/api/agents/:agentId/delete", async (req, res) => {
   }
 });
 
+app.put("/api/agents/:agentId", async (req, res) => {
+  try {
+    const updatedAgent = await dbAgentController.updateAgent(req.params.agentId, req.body);
+    res.json(updatedAgent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/agents/:agentId", async (req, res) => {
+  try {
+    const agent = await dbAgentController.getAgentById(req.params.agentId);
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
+    res.json(agent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Test MongoDB connection route
 app.get("/test-db", async (req, res) => {
