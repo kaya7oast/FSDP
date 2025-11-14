@@ -7,13 +7,16 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start-node":"node app.js",
+    "start": "node app.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@tailwindcss/postcss": "^4.1.17",
     "autoprefixer": "^10.4.21",
     "axios": "^1.13.2",
+    "compass": "^0.1.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
