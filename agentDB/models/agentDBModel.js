@@ -52,7 +52,7 @@ agentSchema.pre("save", async function (next) {
 
 
 
-const Agent = mongoose.model("Agent", agentSchema, "Agent");
+const Agent = mongoose.model("agents", agentSchema, "agents");
 export default Agent;
 
 
