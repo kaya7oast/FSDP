@@ -30,7 +30,7 @@ const agentSchema = new mongoose.Schema({
 });
 
 
-// Auto-generate AgentID: A001, A002, A003...
+// Auto-generate AgentID:
 agentSchema.pre("save", async function (next) {
   if (this.AgentID) return next(); // skip if already set
 
