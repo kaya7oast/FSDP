@@ -20,6 +20,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "lucide-react": "^0.554.0",
     "mongoose": "^8.19.3",
     "openai": "^6.8.1",
     "postcss": "^8.5.6",
