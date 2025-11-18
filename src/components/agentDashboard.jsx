@@ -1,5 +1,5 @@
-// AgentDashboard.jsx
 import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 // const API_BASE = "/api/agents";
 const API_BASE = "http://localhost:3000/api/agents";
 
@@ -11,6 +11,9 @@ function AgentDashboard() {
   const [darkMode, setDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [agents, setAgents] = useState([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
 
   // Apply dark mode class to root div
   const rootClassName = darkMode ? "dark" : "";
@@ -27,7 +30,6 @@ function AgentDashboard() {
       if (!res.ok) throw new Error("Failed to fetch agents");
       const data = await res.json();
       
-      alert(`Fetched ${Array.isArray(data) ? data.length : 0} agents.`);
       setAgents(Array.isArray(data) ? data : []);
       return data;
     } catch (err) {
@@ -76,43 +78,24 @@ function AgentDashboard() {
     .slice(0, 3);
 
   // CREATE
-  const handleCreateAgent = async () => {
-    const AgentName = prompt("Enter agent name:");
-    if (!AgentName || !AgentName.trim()) return alert("Agent name is required.");
-
-    const Description = prompt("Enter agent description:") || "";
-    const Specialization = prompt("Enter specialization (e.g., 'Technical Support'):") || "";
-
-    let CapabilitiesInput = prompt(
-      "Enter capabilities separated by commas:\nExample: Diagnose issues, Install software"
-    );
-    const Capabilities = CapabilitiesInput
-      ? CapabilitiesInput.split(",").map((c) => c.trim()).filter(Boolean)
-      : [];
-
-    // Personality fields (optional)
-    const Tone = prompt("Enter personality tone (optional, e.g., 'Professional'):") || "";
-    const LanguageStyle = prompt("Enter language style (optional, e.g., 'Formal'):") || "";
-    const Emotion = prompt("Enter emotion tone (optional, e.g., 'Empathetic'):") || "";
-
-    // Generate AgentID
+  const handleCreateAgent = async (formData) => {
     const AgentID = `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const newAgentPayload = {
       AgentID,
-      AgentName: AgentName.trim(),
-      Description,
-      Specialization,
-      Capabilities,
+      AgentName: formData.AgentName.trim(),
+      Description: formData.Description || "",
+      Specialization: formData.Specialization || "",
+      Capabilities: formData.Capabilities || [],
       Personality: {
-        Tone: Tone || undefined,
-        LanguageStyle: LanguageStyle || undefined,
-        Emotion: Emotion || undefined,
+        Tone: formData.Tone || undefined,
+        LanguageStyle: formData.LanguageStyle || undefined,
+        Emotion: formData.Emotion || undefined,
       },
       KnowledgeBase: {
         Type: "General",
       },
-      status: "active", // matches schema enum
+      status: "active",
     };
 
     try {
@@ -126,11 +109,13 @@ function AgentDashboard() {
 
       const createdAgent = await res.json();
       setAgents((prev) => [...prev, createdAgent]);
-      alert("Agent created successfully!");
+      setAlertMessage("Agent created successfully!");
+      setShowAlertModal(true);
       return createdAgent;
     } catch (err) {
       console.error("Error creating agent:", err);
-      alert("Failed to create agent.");
+      setAlertMessage("Failed to create agent.");
+      setShowAlertModal(true);
       return null;
     }
   };
@@ -254,22 +239,22 @@ function AgentDashboard() {
             <div className="flex items-center gap-4">
               <span className="material-symbols-outlined text-primary text-3xl">hub</span>
               <h2 className="text-xl font-bold">
-                <a href="#" className="hover:text-primary transition-colors">
+                <Link to="/AgentHomepage" className="hover:text-primary transition-colors">
                   AI Agent Platform
-                </a>
+                </Link>
               </h2>
             </div>
 
             <nav className="hidden md:flex items-center gap-9">
-              <a className="text-sm font-semibold text-primary transition-colors" href="#">
+              <Link className="text-sm font-semibold text-primary transition-colors" to="#">
                 Dashboard
-              </a>
-              <a className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" href="#">
+              </Link>
+              <Link className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" to="/agents">
                 Agents
-              </a>
-              <a className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" href="#">
+              </Link>
+              <Link className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" to="/conversations">
                 Conversations
-              </a>
+              </Link>
             </nav>
 
             <div className="flex items-center gap-4">
@@ -305,7 +290,7 @@ function AgentDashboard() {
                 </p>
               </div>
               <button
-                onClick={handleCreateAgent}
+                onClick={() => setShowCreateModal(true)}
                 className="flex items-center justify-center rounded-lg h-12 px-6 bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md active:scale-95"
               >
                 <span className="material-symbols-outlined mr-2">add</span>
@@ -355,6 +340,23 @@ function AgentDashboard() {
             </div>
           </div>
         </main>
+
+        {showCreateModal && (
+          <CreateAgentModal
+            onClose={() => setShowCreateModal(false)}
+            onSubmit={(data) => {
+              handleCreateAgent(data);
+              setShowCreateModal(false);
+            }}
+          />
+        )}
+
+        {showAlertModal && (
+          <AlertModal
+            message={alertMessage}
+            onClose={() => setShowAlertModal(false)}
+          />
+        )}
       </div>
     </div>
   );
@@ -520,6 +522,228 @@ function FilterDropdown({ label, options, onSelect }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function CreateAgentModal({ onClose, onSubmit }) {
+  const [formData, setFormData] = useState({
+    AgentName: "",
+    Description: "",
+    Specialization: "",
+    Capabilities: [],
+    Tone: "",
+    LanguageStyle: "",
+    Emotion: "",
+  });
+  const [capabilityInput, setCapabilityInput] = useState("");
+
+  const handleAddCapability = () => {
+    if (capabilityInput.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        Capabilities: [...prev.Capabilities, capabilityInput.trim()]
+      }));
+      setCapabilityInput("");
+    }
+  };
+
+  const handleRemoveCapability = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      Capabilities: prev.Capabilities.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.AgentName.trim()) {
+      alert("Agent name is required.");
+      return;
+    }
+    onSubmit(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+      <div className="bg-white dark:bg-background-dark rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-border-light dark:border-border-dark">
+        <div className="sticky top-0 bg-white dark:bg-background-dark border-b border-border-light dark:border-border-dark px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+              <span className="material-symbols-outlined text-primary">smart_toy</span>
+            </div>
+            <h2 className="text-2xl font-bold">Create New Agent</h2>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <span className="material-symbols-outlined text-inactive">close</span>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-text-light dark:text-text-dark">
+              Agent Name <span className="text-danger">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.AgentName}
+              onChange={(e) => setFormData({ ...formData, AgentName: e.target.value })}
+              className="w-full px-4 py-3 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+              placeholder="e.g., Customer Support Assistant"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-text-light dark:text-text-dark">Description</label>
+            <textarea
+              value={formData.Description}
+              onChange={(e) => setFormData({ ...formData, Description: e.target.value })}
+              className="w-full px-4 py-3 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark focus:outline-none focus:ring-2 focus:ring-primary transition-all resize-none"
+              placeholder="Brief description of the agent's purpose"
+              rows="3"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-text-light dark:text-text-dark">Specialization</label>
+            <input
+              type="text"
+              value={formData.Specialization}
+              onChange={(e) => setFormData({ ...formData, Specialization: e.target.value })}
+              className="w-full px-4 py-3 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+              placeholder="e.g., Technical Support, Sales, Data Analysis"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-text-light dark:text-text-dark">Capabilities</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={capabilityInput}
+                onChange={(e) => setCapabilityInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCapability())}
+                className="flex-1 px-4 py-3 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                placeholder="e.g., Diagnose issues, Install software"
+              />
+              <button
+                type="button"
+                onClick={handleAddCapability}
+                className="px-4 py-3 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary font-semibold hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+            {formData.Capabilities.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {formData.Capabilities.map((cap, idx) => (
+                  <span key={idx} className="px-3 py-1.5 bg-primary/10 dark:bg-primary/20 text-primary rounded-full text-sm font-medium flex items-center gap-2">
+                    {cap}
+                    <button type="button" onClick={() => handleRemoveCapability(idx)} className="hover:text-danger transition-colors">
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-border-light dark:border-border-dark pt-6">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">psychology</span>
+              Personality (Optional)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-text-light dark:text-text-dark">Tone</label>
+                <input
+                  type="text"
+                  value={formData.Tone}
+                  onChange={(e) => setFormData({ ...formData, Tone: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                  placeholder="e.g., Professional"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-text-light dark:text-text-dark">Language Style</label>
+                <input
+                  type="text"
+                  value={formData.LanguageStyle}
+                  onChange={(e) => setFormData({ ...formData, LanguageStyle: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                  placeholder="e.g., Formal"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-text-light dark:text-text-dark">Emotion</label>
+                <input
+                  type="text"
+                  value={formData.Emotion}
+                  onChange={(e) => setFormData({ ...formData, Emotion: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg bg-white dark:bg-background-dark border border-border-light dark:border-border-dark focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                  placeholder="e.g., Empathetic"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 rounded-lg border border-border-light dark:border-border-dark text-text-light dark:text-text-dark font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined">check</span>
+              Create Agent
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AlertModal({ message, onClose }) {
+  const isSuccess = message.toLowerCase().includes("success");
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+      <div className="bg-white dark:bg-background-dark rounded-2xl shadow-2xl max-w-md w-full border border-border-light dark:border-border-dark overflow-hidden">
+        <div className={`px-6 py-4 ${isSuccess ? 'bg-success/10' : 'bg-danger/10'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isSuccess ? 'bg-success text-white' : 'bg-danger text-white'}`}>
+              <span className="material-symbols-outlined">
+                {isSuccess ? 'check_circle' : 'error'}
+              </span>
+            </div>
+            <h3 className="text-lg font-bold">{isSuccess ? 'Success' : 'Error'}</h3>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <p className="text-text-light dark:text-text-dark">{message}</p>
+        </div>
+
+        <div className="px-6 pb-6 flex justify-end">
+          <button
+            onClick={onClose}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              isSuccess 
+                ? 'bg-success text-white hover:bg-success/90' 
+                : 'bg-danger text-white hover:bg-danger/90'
+            }`}
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
