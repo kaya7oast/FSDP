@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 // const API_BASE = "/api/agents";
 const API_BASE = "http://localhost:3000/api/agents";
 
@@ -238,22 +239,22 @@ function AgentDashboard() {
             <div className="flex items-center gap-4">
               <span className="material-symbols-outlined text-primary text-3xl">hub</span>
               <h2 className="text-xl font-bold">
-                <a href="#" className="hover:text-primary transition-colors">
+                <Link to="/AgentHomepage" className="hover:text-primary transition-colors">
                   AI Agent Platform
-                </a>
+                </Link>
               </h2>
             </div>
 
             <nav className="hidden md:flex items-center gap-9">
-              <a className="text-sm font-semibold text-primary transition-colors" href="#">
+              <Link className="text-sm font-semibold text-primary transition-colors" to="#">
                 Dashboard
-              </a>
-              <a className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" href="#">
+              </Link>
+              <Link className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" to="/agents">
                 Agents
-              </a>
-              <a className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" href="#">
+              </Link>
+              <Link className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" to="/conversations">
                 Conversations
-              </a>
+              </Link>
             </nav>
 
             <div className="flex items-center gap-4">
