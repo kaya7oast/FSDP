@@ -5,26 +5,35 @@ import { generateAIResponse } from "../../services/aiService.js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+
+function generateConversationId(userId, agentId) {
+  const randomPart = Math.random().toString(10).substring(2, 7).toUpperCase();
+  return `${userId}CONVO${agentId}-${randomPart}`;
+}
+
+
+
 // small service wrapper — you can move this to a separate file (e.g. services/agentService.js)
 
 
 export const chatWithAgent = async (req, res) => {
   const { agentId } = req.params;
-  const { userId, message, provider = "gemini" } = req.body;
+  const { userId, message, provider = "gemini", chatname,conversationId = null } = req.body;
 
   try {
     const agent = await getAgentById(agentId);
     if (!agent) return res.status(404).json({ error: "Agent not found" });
 
-    const conversationId = `${userId}CONV${agentId}`;
+    
     let conversation = await Conversation.findOne({ conversationId });
 
     if (!conversation) {
       conversation = new Conversation({
-        conversationId,
+        conversationId: generateConversationId(userId, agentId), 
         userId,
         agentId,
         provider,
+        chatname: chatname || `Chat with ${agent.name}`,
         messages: [
           {
             role: "system",
@@ -73,11 +82,10 @@ export const chatWithAgent = async (req, res) => {
 
 
 export const summarizeConversation = async (req, res) => {
-  const { userId, agentId, provider = "openai" } = req.params; // provider optional
+  const { userId, agentId, provider = "openai", conversationId } = req.params; // provider optional
   // const { userId, agentId, provider = "openai" } = req.body; // provider optional
 
   try {
-    const conversationId = `${userId}CONV${agentId}`;
     const conversation = await Conversation.findOne({ conversationId });
 
     if (!conversation) {

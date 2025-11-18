@@ -7,13 +7,15 @@ const messageSchema = new mongoose.Schema({
 });
 
 const conversationSchema = new mongoose.Schema({
-  conversationId: { type: String, unique: true, required: true }, // e.g. "USER123CONVAGENT1"
+  conversationId: { type: String, unique: true, required: true },
   userId: { type: String, required: true },
   agentId: { type: String, required: true },
-  provider: { type: String, required: true }, // e.g. "openai", "gemini", "perplexity"
+  provider: { type: String, required: true },
   messages: [messageSchema],
   latestSummary: { type: String, default: "" },
-  status : { type: String, enum: ["active", "deleted"], default: "active" },
+  chatname: { type: String, default: "" },
+  status: { type: String, enum: ["active", "deleted"], default: "active" },
 });
 
-export default mongoose.model("Conversation", conversationSchema);
+// ⬇ force collection name "conversations"
+export default mongoose.model("Conversation", conversationSchema, "conversations");
