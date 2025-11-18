@@ -1,36 +1,40 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
-const Sidebar = () => {
+export default function Sidebar() {
   return (
-    <aside className="flex flex-col gap-y-6 w-64 bg-white dark:bg-background-dark border-r border-slate-200 dark:border-slate-800 p-4">
-      <div className="flex items-center gap-2 px-4">
-        <svg className="h-8 w-8 text-primary" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-          <path d="M36.7273 44C33.9891 44 31.6043 39.8386 30.3636 33.69C29.123 39.8386 26.7382 44 24 44C21.2618 44 18.877 39.8386 17.6364 33.69C16.3957 39.8386 14.0109 44 11.2727 44C7.25611 44 4 35.0457 4 24C4 12.9543 7.25611 4 11.2727 4C14.0109 4 16.3957 8.16144 17.6364 14.31C18.877 8.16144 21.2618 4 24 4C26.7382 4 29.123 8.16144 30.3636 14.31C31.6043 8.16144 33.9891 4 36.7273 4C40.7439 4 44 12.9543 44 24C44 35.0457 40.7439 44 36.7273 44Z" fill="currentColor"></path>
-        </svg>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">AI Agents</h1>
+    <aside className="w-64 bg-white dark:bg-background-dark border-r h-full">
+      <div className="p-6 border-b">
+        <h1 className="text-xl font-bold">AI Agents</h1>
       </div>
 
-      <nav className="flex flex-col gap-2">
-        <Link className="flex items-center gap-3 px-4 py-2 rounded-lg bg-primary/20 text-primary" to="/">
-          <span className="material-symbols-outlined">widgets</span>
-          <span className="font-medium myagent">My Agents</span>
-        </Link>
-        <Link className="flex items-center gap-3 px-4 py-2 rounded-lg" to="/agentBuilder">
-          <span className="material-symbols-outlined">add_circle_outline</span>
-          <span className="font-medium newagent">Create New Agent</span>
-        </Link>
-        <Link className="flex items-center gap-3 px-4 py-2 rounded-lg" to="/agentConversation">
-          <span className="material-symbols-outlined">chat_bubble_outline</span>
-          <span className="font-medium conversation">Conversations</span>
-        </Link>
-        <Link className="flex items-center gap-3 px-4 py-2 rounded-lg" to="/dashboard">
-          <span className="material-symbols-outlined">settings</span>
-          <span className="font-medium setting">Settings</span>
-        </Link>
+      <nav className="p-4">
+        <ul className="space-y-2">
+          <li>
+            <NavLink to="/" end className={({ isActive }) => `flex items-center gap-3 px-4 py-2 rounded ${isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}>
+              <span>My Agents</span>
+            </NavLink>
+          </li>
+
+          <li>
+            <NavLink to="/dashboard" className={({ isActive }) => `flex items-center gap-3 px-4 py-2 rounded ${isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}>
+              <span>Create New Agent</span>
+            </NavLink>
+          </li>
+
+          <li>
+            <NavLink to="/conversations" className={({ isActive }) => `flex items-center gap-3 px-4 py-2 rounded ${isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}>
+              <span>Conversations</span>
+            </NavLink>
+          </li>
+
+          <li>
+            <NavLink to="/dashboard" className={({ isActive }) => `flex items-center gap-3 px-4 py-2 rounded ${isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}>
+              <span>Settings</span>
+            </NavLink>
+          </li>
+        </ul>
       </nav>
     </aside>
-  );
-};
-
-export default Sidebar;
+  )
+}

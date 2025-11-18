@@ -239,7 +239,7 @@ function AgentDashboard() {
             <div className="flex items-center gap-4">
               <span className="material-symbols-outlined text-primary text-3xl">hub</span>
               <h2 className="text-xl font-bold">
-                <Link to="/AgentHomepage" className="hover:text-primary transition-colors">
+                <Link to="/" className="hover:text-primary transition-colors">
                   AI Agent Platform
                 </Link>
               </h2>
