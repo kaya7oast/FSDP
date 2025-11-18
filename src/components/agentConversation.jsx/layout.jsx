@@ -1,5 +1,5 @@
-import "../styles/globals.css"              // ← REQUIRED for Tailwind
-import "../styles/agentConversation.css"  // ← Your custom CSS
+import "../globals.css"              // ← REQUIRED for Tailwind
+import "../agentConversation.css"  // ← Your custom CSS
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from "@vercel/analytics/react"
 
@@ -10,7 +10,7 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] })
 export const metadata = {
   title: "AI Agent Chat",
   description: "Chat with AI agents for marketing, support, and research",
-  generator: "v0.app",
+  generator: "FSDP",
   icons: {
     icon: [
       {
