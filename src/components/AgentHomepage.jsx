@@ -12,11 +12,27 @@ const AgentHomepage = () => {
   ];
 
   return (
-    <div className="flex h-auto min-h-screen w-full flex-col bg-background-light dark:bg-background-dark">
+    <div className="flex h-auto min-h-screen w-full bg-background-light dark:bg-background-dark">
       <Sidebar />
-      <main className="flex-1">
+      <main className="flex-1 min-h-screen overflow-auto">
         <Header />
+
+        {/* Added page heading + Create button */}
         <div className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Your AI Agents</h1>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-300">Manage and create your custom AI agents.</p>
+            </div>
+
+            <button
+              type="button"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
+            >
+              Create New Agent
+            </button>
+          </div>
+
           <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
             {agents.map((agent, index) => (
               <AgentCard key={index} agent={agent} />
