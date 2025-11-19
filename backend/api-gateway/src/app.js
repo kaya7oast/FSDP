@@ -20,6 +20,7 @@ app.get("/health", (req, res) => {
 
 
 
+
 console.log("API Gateway targets:", {
   AGENT_SERVICE: process.env.AGENT_SERVICE,
   CONVERSATION_SERVICE: process.env.CONVERSATION_SERVICE,
