@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 // const API_BASE = "/api/agents";
-const API_BASE = "http://localhost:3000/api/agents";
+const API_BASE = "http://localhost:3000/agents";
 
 function AgentDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -25,6 +25,7 @@ function AgentDashboard() {
 
   const fetchAgents = async () => {
     try {
+      console .log("Fetching agents from", API_BASE);
       const res = await fetch(API_BASE);
       
       if (!res.ok) throw new Error("Failed to fetch agents");
