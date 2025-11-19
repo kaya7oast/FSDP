@@ -6,6 +6,78 @@ import { Input } from "./input.jsx"
 import { Avatar, AvatarFallback, AvatarImage } from "./avatar.jsx"
 import { Search, MoreVertical, Send, Paperclip, Mic, X, Megaphone, Headset, FlaskConical } from 'lucide-react'
 
+
+
+const userId = "67"; // You can later replace this with dynamic login/session ID
+
+const sendMessageToBackend = async (message, agentId, userId) => {
+  const res = await fetch(`http://localhost:3000/api/agents/${agentId}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, message })
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    console.error("Backend error response:", errorData);
+    throw new Error("Backend error");
+  }
+
+  const data = await res.json();
+  // Return the last agent message from the conversation
+  const lastMessage = data.messages[data.messages.length - 1];
+  return lastMessage.content;
+};
+
+const handleSendMessage = async () => {
+  if (!inputMessage.trim()) return;
+
+  // Prepare user message for UI
+  const userMessage = {
+    id: Date.now().toString(),
+    sender: "user",
+    content: inputMessage,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=john"
+  };
+
+  // Add user message to UI immediately
+  setMessages(prev => [...prev, userMessage]);
+
+  const messageToSend = inputMessage;
+  setInputMessage(""); // clear input field
+
+  try {
+    // Call backend
+    const backendReply = await sendMessageToBackend(messageToSend, selectedAgent.id, userId);
+
+    const agentMessage = {
+      id: (Date.now() + 1).toString(),
+      sender: "agent",
+      content: backendReply,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      avatar: selectedAgent.avatar
+    };
+
+    // Add agent reply to UI
+    setMessages(prev => [...prev, agentMessage]);
+
+  } catch (err) {
+    console.error("Error contacting backend:", err);
+
+    const errorMessage = {
+      id: (Date.now() + 1).toString(),
+      sender: "agent",
+      content: "⚠️ Error: Could not contact backend.",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      avatar: selectedAgent.avatar
+    };
+
+    setMessages(prev => [...prev, errorMessage]);
+  }
+};
+
+
 const agents = [
   {
     id: "marketing",
@@ -76,32 +148,51 @@ export default function AIAgentChat() {
     ]
   }
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return
+  const handleSendMessage = async () => {
+  if (!inputMessage.trim()) return;
 
-    const newMessage = {
-      id: Date.now().toString(),
-      sender: "user",
-      content: inputMessage,
+  const userMessage = {
+    id: Date.now().toString(),
+    sender: "user",
+    content: inputMessage,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=john"
+  };
+
+  // Add user message to UI immediately
+  setMessages(prev => [...prev, userMessage]);
+
+  const messageToSend = inputMessage;
+  setInputMessage("");
+
+  try {
+    // ---- CALL YOUR BACKEND ----
+    const backendReply = await sendMessageToBackend(messageToSend, selectedAgent.id);
+
+    const agentMessage = {
+      id: (Date.now() + 1).toString(),
+      sender: "agent",
+      content: backendReply,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=john"
-    }
+      avatar: selectedAgent.avatar
+    };
 
-    setMessages([...messages, newMessage])
-    setInputMessage("")
+    setMessages(prev => [...prev, agentMessage]);
 
-    // Simulate agent response
-    setTimeout(() => {
-      const agentResponse = {
-        id: (Date.now() + 1).toString(),
-        sender: "agent",
-        content: "I'm processing your request. How else can I assist you?",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        avatar: selectedAgent.avatar
-      }
-      setMessages(prev => [...prev, agentResponse])
-    }, 1000)
+  } catch (err) {
+    console.error("Error contacting backend:", err);
+
+    const errorMessage = {
+      id: (Date.now() + 1).toString(),
+      sender: "agent",
+      content: "⚠️ Error: Could not contact backend.",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      avatar: selectedAgent.avatar
+    };
+
+    setMessages(prev => [...prev, errorMessage]);
   }
+};
 
   return (
     <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-950">

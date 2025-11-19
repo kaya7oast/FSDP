@@ -19,10 +19,14 @@ import {
   getAllConversations,
   changeProvider,
   test
-} from "./agent/controllers/agentController.js";
+} from "./agentDB/controllers/agentConvController.js";
 
 // Database agent controllers (MongoDB)
 import * as dbAgentController from "./agentDB/controllers/agentDBController.js";
+// Agent Conversation Controller (MongoDB)
+import * as agentConvController from "./agentDB/controllers/agentConvController.js";
+
+
 
 dotenv.config();
 
@@ -67,11 +71,18 @@ app.get("/agent-conversation", (req, res) =>
 // -------------------------
 // Agent Chat API Routes
 // -------------------------
-app.post("/api/agents/:agentId/chat", chatWithAgent);
+app.post("/api/agents/:agentId/chat", agentConvController.chatWithAgent);
+app.get("/api/conversation/:userId/:agentId", agentConvController.getConversation);
+app.post("/api/conversation/:userId/:agentId/summarize", agentConvController.summarizeConversation);
+app.delete("/api/conversation/:userId/:agentId", agentConvController.deleteConversation);
+app.get("/api/conversations/:userId", agentConvController.getAllConversations);
+app.put("/api/conversation/:userId/:agentId/change-provider", agentConvController.changeProvider);
+
+
+
 app.get("/api/agents/test", test);
-app.post("/api/conversation/:userId/:agentId/summarize", summarizeConversation);
-app.get("/api/conversation/:userId/:agentId", getConversation);
-app.post("/api/conversation/:userId/:agentId", deleteConversation);
+
+
 app.get("/api/conversations/:userId", getAllConversations);
 app.put("/api/conversation/:userId/:agentId/change-provider", changeProvider);
 
