@@ -87,3 +87,19 @@ button {
   outline-offset: 2px;
 }
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined');
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.sidebar {
+  position: sticky;
+  top: 1rem;
+  align-self: flex-start;
+  height: calc(100vh - 2rem);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  z-index: 10;
+}

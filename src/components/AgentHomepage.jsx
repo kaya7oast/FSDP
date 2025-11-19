@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import AgentCard from './AgentCard';
+// import AgentCard from './AgentCard' // removed - using inline preview to match dashboard fields
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000/api/agents';
 
@@ -35,6 +35,57 @@ const AgentHomepage = () => {
     fetchAgents();
   }, []);
 
+  // Local preview card that matches fields used in agentDashboard.jsx
+  const AgentPreview = ({ agent }) => {
+    const isActive = String(agent?.status || agent?.Status || "").toLowerCase() === "active";
+    const isArchived = String(agent?.status || agent?.Status || "").toLowerCase() === "archived";
+    const caps = agent?.Capabilities ?? [];
+    const name = agent?.AgentName ?? agent?.name ?? "Unnamed Agent";
+
+    return (
+      <div className="bg-white dark:bg-background-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark p-6 flex flex-col gap-4 hover:shadow-lg transition-shadow duration-300 relative group min-h-[180px]">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isActive ? "bg-primary/10 dark:bg-primary/20" : "bg-gray-200 dark:bg-gray-700"}`}>
+              <span className={`material-symbols-outlined text-2xl ${isActive ? "text-primary" : "text-inactive"}`}>smart_toy</span>
+            </div>
+            <div>
+              <h3 className="font-bold text-lg leading-tight">{name}</h3>
+              <div className={`text-sm font-medium flex items-center gap-2 mt-1 ${isActive ? "text-success" : "text-inactive"}`}>
+                <span className={`w-2 h-2 rounded-full ${isActive ? "bg-success" : "bg-inactive"}`}></span>
+                <span>{agent?.status ?? agent?.Status ?? "unknown"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* read-only on homepage */}
+        </div>
+
+        {/* Capabilities: organized as consistent chips */}
+        <div className="mt-2">
+          {caps.length > 0 ? (
+            <div className="flex flex-wrap items-start gap-2">
+              {caps.map((tag, idx) => (
+                <span
+                  key={idx}
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide transition-colors ${isArchived ? "bg-gray-100 dark:bg-gray-800 text-inactive" : "bg-primary/10 dark:bg-primary/20 text-primary"}`}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <span className="inline-block px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-xs text-inactive">No capabilities</span>
+            </div>
+          )}
+        </div>
+
+        {/* intentionally omitted last-updated and ID */}
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-auto min-h-screen w-full bg-background-light dark:bg-background-dark">
       <Sidebar />
@@ -64,10 +115,9 @@ const AgentHomepage = () => {
             {error && <p className="text-sm text-danger">{error}</p>}
           </div>
 
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
             {agents.map((agent, index) => (
-              // pass the raw agent object to AgentCard; AgentCard component expects agent props
-              <AgentCard key={agent._id ?? index} agent={agent} />
+              <AgentPreview key={agent._id ?? index} agent={agent} />
             ))}
 
             {!loading && agents.length === 0 && (

@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import AgentHomepage from './components/AgentHomepage.jsx'
 import AgentConversation from './components/agentConversation.jsx/page.jsx'
 import AgentDashboard from './components/agentDashboard.jsx'
+import AgentBuilder from './components/agentBuilder.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -13,6 +14,7 @@ createRoot(document.getElementById('root')).render(
         <Route path="/" element={<AgentHomepage />} />
         <Route path="/conversations" element={<AgentConversation />} />
         <Route path="/dashboard" element={<AgentDashboard />} />
+        <Route path="/builder" element={<AgentBuilder />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -21,6 +21,8 @@ import {
   test
 } from "./agentDB/controllers/agentConvController.js";
 
+import { saveAgent } from './agentDB/controllers/agentBuilderController.js';
+
 // Database agent controllers (MongoDB)
 import * as dbAgentController from "./agentDB/controllers/agentDBController.js";
 // Agent Conversation Controller (MongoDB)
@@ -67,6 +69,9 @@ app.get("/dashboard", (req, res) =>
 app.get("/agent-conversation", (req, res) =>
   res.sendFile(path.join(__dirname, "views", "agentConversation.html"))
 );
+
+// Agent builder api routes
+app.post('/api/agents', saveAgent);
 
 // -------------------------
 // Agent Chat API Routes
