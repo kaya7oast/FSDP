@@ -249,6 +249,9 @@ function AgentDashboard() {
               <Link className="text-sm font-semibold text-primary transition-colors" to="#">
                 Dashboard
               </Link>
+              <Link className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" to="/builder">
+                Create new agent
+              </Link>
               <Link className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" to="/agents">
                 Agents
               </Link>
