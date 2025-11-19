@@ -4,7 +4,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 // import AgentCard from './AgentCard' // removed - using inline preview to match dashboard fields
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000/agents';
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000/api/agents';
 
 const AgentHomepage = () => {
   const navigate = useNavigate();
@@ -20,7 +20,6 @@ const AgentHomepage = () => {
       const res = await fetch(API_BASE);
       if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
       const data = await res.json();
-      console.log('Fetched agents:', data);
       // ensure array
       setAgents(Array.isArray(data) ? data : []);
     } catch (err) {

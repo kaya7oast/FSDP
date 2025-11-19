@@ -117,8 +117,8 @@ const AgentBuilder = () => {
       Capabilities: formData.Capabilities.split(',').map(item => item.trim()).filter(item => item),
     };
 
-    // Send to your dockerized backend API
-    const response = await fetch('http://localhost:3000/agents', {
+    // Send to your Express server (running on port 3000 or whatever your app.js uses)
+    const response = await fetch('http://localhost:3000/api/agents', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

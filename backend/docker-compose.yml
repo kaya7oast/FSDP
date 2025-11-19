@@ -3,18 +3,22 @@ services:
     build: ./api-gateway
     container_name: api-gateway
     ports:
-      - "3000:3000"
+      - target: 3000
+        published: 3000
+        protocol: tcp
+        mode: host
     environment:
       PORT: 3000
       AGENT_SERVICE: http://agent-service:4001
       CONVERSATION_SERVICE: http://conversation-service:4002
       AI_SERVICE_URL: http://ai-service:4000
     depends_on:
-      - agent-service
-      - conversation-service
-      - ai-service
-    networks:
-      - backend
+      agent-service:
+        condition: service_started
+      conversation-service:
+        condition: service_started
+      ai-service:
+        condition: service_started
 
   agent-service:
     build: ./agent-service
@@ -23,11 +27,13 @@ services:
       PORT: 4001
       MONGO_URI: ${AGENT_DB}
     ports:
-      - "4001:4001"
+      - target: 4001
+        published: 4001
+        protocol: tcp
+        mode: host
     depends_on:
-      - mongo
-    networks:
-      - backend
+      mongo:
+        condition: service_started
 
   conversation-service:
     build: ./conversation-service
@@ -38,13 +44,17 @@ services:
       AI_SERVICE_URL: http://ai-service:4000
       AGENT_SERVICE: http://agent-service:4001
     ports:
-      - "4002:4002"
+      - target: 4002
+        published: 4002
+        protocol: tcp
+        mode: host
     depends_on:
-      - mongo
-      - ai-service
-      - agent-service
-    networks:
-      - backend
+      mongo:
+        condition: service_started
+      ai-service:
+        condition: service_started
+      agent-service:
+        condition: service_started
 
   ai-service:
     build: ./ai-service
@@ -55,21 +65,19 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
     ports:
-      - "4000:4000"
-    networks:
-      - backend
+      - target: 4000
+        published: 4000
+        protocol: tcp
+        mode: host
 
   mongo:
     image: mongo:6
     container_name: mongo
     ports:
-      - "27017:27017"
+      - target: 27017
+        published: 27017
+        protocol: tcp
+        mode: host
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
-    networks:
-      - backend
-
-networks:
-  backend:
-    driver: bridge
