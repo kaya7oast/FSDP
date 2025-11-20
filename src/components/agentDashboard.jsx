@@ -77,50 +77,7 @@ function AgentDashboard() {
     })
     .slice(0, 3);
 
-  // CREATE
-  const handleCreateAgent = async (formData) => {
-    const AgentID = `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    const newAgentPayload = {
-      AgentID,
-      AgentName: formData.AgentName.trim(),
-      Description: formData.Description || "",
-      Specialization: formData.Specialization || "",
-      Capabilities: formData.Capabilities || [],
-      Personality: {
-        Tone: formData.Tone || undefined,
-        LanguageStyle: formData.LanguageStyle || undefined,
-        Emotion: formData.Emotion || undefined,
-      },
-      KnowledgeBase: {
-        Type: "General",
-      },
-      status: "active",
-    };
-
-    try {
-      const res = await fetch(API_BASE, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newAgentPayload),
-      });
-
-      if (!res.ok) throw new Error("Failed to create agent");
-
-      const createdAgent = await res.json();
-      setAgents((prev) => [...prev, createdAgent]);
-      setAlertMessage("Agent created successfully!");
-      setShowAlertModal(true);
-      return createdAgent;
-    } catch (err) {
-      console.error("Error creating agent:", err);
-      setAlertMessage("Failed to create agent.");
-      setShowAlertModal(true);
-      return null;
-    }
-  };
-
-
+  
   // DELETE (your server offers POST /api/agents/:agentId/delete)
   const handleDeleteAgent = async (_id) => {
     const agent = agents.find((a) => a._id === _id);
@@ -144,36 +101,6 @@ function AgentDashboard() {
     }
   };
 
-  // DUPLICATE (client-side + POST to create)
-  const handleDuplicateAgent = async (_id) => {
-    const agent = agents.find((a) => a._id === _id);
-    if (!agent) return;
-
-    const dupPayload = {
-      AgentID: `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      AgentName: `${getName(agent)} (Copy)`,
-      status: getStatus(agent),
-      Capabilities: getCapabilities(agent),
-      Description: agent?.Description ?? "",
-      Specialization: agent?.Specialization ?? "",
-      Personality: agent?.Personality ?? { Tone: "", LanguageStyle: "", Emotion: "" },
-      KnowledgeBase: agent?.KnowledgeBase ?? { Type: "General" },
-    };
-
-    try {
-      const res = await fetch(API_BASE, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dupPayload),
-      });
-      if (!res.ok) throw new Error(`Duplicate failed: ${res.status}`);
-      const created = await res.json();
-      setAgents((prev) => [...prev, created]);
-    } catch (err) {
-      console.error("Error duplicating agent:", err);
-      alert("Failed to duplicate agent. Check console for details.");
-    }
-  };
 
   // EDIT (attempt a PUT to conventional route; add route server-side if missing)
   const handleEditAgent = async (_id) => {
@@ -292,13 +219,6 @@ function AgentDashboard() {
                   {agents.filter((a) => String(getStatus(a)).toLowerCase() === "active").length} active
                 </p>
               </div>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center justify-center rounded-lg h-12 px-6 bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md active:scale-95"
-              >
-                <span className="material-symbols-outlined mr-2">add</span>
-                <span className="truncate">Create New Agent</span>
-              </button>
             </div>
 
             <div className="flex flex-col md:flex-row gap-4 mb-6">
