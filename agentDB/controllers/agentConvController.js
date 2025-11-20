@@ -10,10 +10,26 @@ export const test = (req, res) => {
 // -------------------------
 // Chat with agent
 // -------------------------
+// ...existing code...
 export const chatWithAgent = async (req, res) => {
   try {
     const { agentId } = req.params;
-    const { userId, message } = req.body;
+    // try common places for userId
+    let { userId, message, provider } = req.body;
+    userId = userId ?? req.params.userId ?? req.user?.id;
+
+    // debug logging to trace incoming data
+    console.debug('chatWithAgent req.params=', req.params);
+    console.debug('chatWithAgent req.body=', req.body);
+    console.debug('chatWithAgent req.headers=', req.headers);
+
+    if (!userId) {
+      console.error('chatWithAgent: missing userId');
+      return res.status(400).json({ error: 'userId is required in request body or params or req.user' });
+    }
+    if (!message) {
+      return res.status(400).json({ error: 'message is required in request body' });
+    }
 
     let conversation = await Conversation.findOne({ userId, agentId });
 
@@ -23,6 +39,10 @@ export const chatWithAgent = async (req, res) => {
         userId,
         agentId,
         messages: [],
+        provider: provider ?? 'openai',            // ensure provider default
+        status: req.body.status ?? 'active',
+        latestSummary: req.body.latestSummary ?? '',
+        chatName: req.body.chatName ?? `chat-${Date.now()}`,
       });
     }
 
@@ -38,14 +58,34 @@ export const chatWithAgent = async (req, res) => {
       content: "I'm processing your request.",
     });
 
+    // Log the document just before saving so you can see missing fields
+    console.debug('Saving conversation:', {
+      conversationId: conversation.conversationId,
+      userId: conversation.userId,
+      agentId: conversation.agentId,
+      provider: conversation.provider,
+      messagesCount: conversation.messages.length,
+    });
+
     await conversation.save();
 
     res.json(conversation);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Backend error" });
+    console.error('chatWithAgent error:', err);
+    // return validation details if available
+    if (err && err.name === 'ValidationError') {
+      return res.status(400).json({ error: 'Validation failed', message: err.message, details: err.errors });
+    }
+    // in dev, return error message and stack to the client for debugging
+    const isDev = process.env.NODE_ENV !== 'production';
+    return res.status(500).json({
+      error: 'Backend error',
+      message: isDev ? err.message : undefined,
+      stack: isDev ? err.stack : undefined,
+    });
   }
 };
+// ...existing code...
 
 // -------------------------
 // Get a conversation
@@ -54,7 +94,7 @@ export const getConversation = async (req, res) => {
   try {
     const { userId, agentId } = req.params;
 
-    const conversation = await Conversation.findOne({ userId, agentId });
+    const conversation = await Conversation.findOne({ userId: "67", agentId });
     if (!conversation) return res.status(404).json({ error: "Conversation not found" });
 
     res.json(conversation);

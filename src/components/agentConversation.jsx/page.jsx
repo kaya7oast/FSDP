@@ -14,7 +14,7 @@ const sendMessageToBackend = async (message, agentId, userId) => {
   const res = await fetch(`http://localhost:3000/api/agents/${agentId}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, message })
+    body: JSON.stringify({ userId: "67", message, provider: "openai" }),
   });
 
   if (!res.ok) {
@@ -80,7 +80,7 @@ const handleSendMessage = async () => {
 
 const agents = [
   {
-    id: "marketing",
+    id: "A1763598231806",
     name: "Marketing Assistant",
     icon: <Megaphone className="h-5 w-5" />,
     avatar: "https://api.dicebear.com/7.x/shapes/svg?seed=marketing",
