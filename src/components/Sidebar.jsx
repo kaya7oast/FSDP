@@ -19,26 +19,30 @@ const NavItem = ({ to, icon, label }) => (
 
 export default function Sidebar() {
   return (
-    <aside className="w-20 lg:w-64 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/50 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between py-6 px-3 z-20 backdrop-blur-xl">
-      <div>
-        {/* Logo Area */}
-        <div className="flex items-center gap-3 px-3 mb-10">
-          <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg">
-            <span className="material-symbols-outlined text-2xl">hub</span>
-          </div>
-          <span className="hidden lg:block text-xl font-bold text-slate-800 dark:text-white tracking-tight">
-            AgentOS
-          </span>
-        </div>
-
-        {/* Navigation Links */}
-        <nav className="space-y-2">
-          <NavItem to="/dashboard" icon="dashboard" label="Agents" />
-          <NavItem to="/analytics" icon="monitoring" label="Analytics" />
-          <NavItem to="/conversations" icon="forum" label="Conversations" />
-          <NavItem to="/builder" icon="smart_toy" label="Agent Builder" />
-        </nav>
+    <aside className="w-64 bg-white dark:bg-background-dark border-r h-full">
+      <div className="p-6 border-b">
+        <h1 className="text-xl font-bold">AI Agents</h1>
       </div>
+
+      <nav className="p-4">
+        <ul className="space-y-2">
+          <li>
+            <NavLink to="/dashboard" end className={({ isActive }) => `flex items-center gap-3 px-4 py-2 rounded ${isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}>
+              <span>My Agents</span>
+            </NavLink>
+          </li>
+
+          <li>
+            <NavLink to="/builder" className={({ isActive }) => `flex items-center gap-3 px-4 py-2 rounded ${isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}>
+              <span>Create New Agent</span>
+            </NavLink>
+          </li>
+
+          <li>
+            <NavLink to="/conversations" className={({ isActive }) => `flex items-center gap-3 px-4 py-2 rounded ${isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}>
+              <span>Conversations</span>
+            </NavLink>
+          </li>
 
       {/* User Profile / Footer */}
       <div className="mt-auto pt-6 border-t border-slate-200 dark:border-slate-800">
