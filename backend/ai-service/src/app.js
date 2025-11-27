@@ -7,6 +7,7 @@ const app = express();
 app.use(express.json());
 
 app.post("/generate", async (req, res) => {
+  console.log("AI Service received request:", req.body);
   const { provider, message, messages } = req.body;
   // Accept either a single `message` string or an array `messages` from callers
   try {
