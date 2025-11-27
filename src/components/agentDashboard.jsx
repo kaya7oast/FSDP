@@ -145,7 +145,7 @@ function AgentDashboard() {
       const res = await fetch(`${API_BASE}/${_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus, UpdatedAt: new Date().toISOString() }),
+        body: JSON.stringify({ Status: newStatus, UpdatedAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error(`Toggle failed: ${res.status}`);
       const updated = await res.json();

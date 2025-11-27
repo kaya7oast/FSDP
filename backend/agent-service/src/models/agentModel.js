@@ -1,27 +1,60 @@
 import mongoose from "mongoose";
 
 const agentSchema = new mongoose.Schema({
-  AgentID: { type: String},  
+  AgentID: { type: String },
+
   AgentName: { type: String, required: true },
+
   Description: String,
   Specialization: String,
+  Region: String,
+
   Personality: {
     Tone: String,
     LanguageStyle: String,
     Emotion: String,
+    ToneValue: Number,
+    StyleValue: Number,
+    EmotionValue: Number
   },
+
   Capabilities: [String],
+
   KnowledgeBase: {
     Type: String,
+    SourceURL: String
   },
-  CreatedAt: { type: Date, default: Date.now },
-  UpdatedAt: { type: Date, default: Date.now },
+
+  Integration: {
+    WebhookURL: String,
+    ConnectedAPIs: [String]
+  },
+
+  Analytics: {
+    AverageResponseTime: Number,
+    SatisfactionScore: Number
+  },
+
+  MemorySettings: {
+    Enabled: Boolean,
+    RetentionPolicy: String,
+    ContextWindow: Number
+  },
+
+  TasksCompleted: Number,
+
   Owner: {
     UserID: String,
-    UserName: String,
+    UserName: String
   },
-  Status: { type: String, enum: ["active", "deleted"], default: "active" }
+
+  Status: { type: String, enum: ["Active", "Deleted"], default: "Active" },
+
+  CreatedAt: { type: Date, default: Date.now },
+  UpdatedAt: { type: Date, default: Date.now }
 });
+
+
 
 // Auto-generate AgentID before saving
 agentSchema.pre("save", async function (next) {
