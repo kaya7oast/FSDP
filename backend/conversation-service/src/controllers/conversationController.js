@@ -214,3 +214,12 @@ export const summarizeConversation = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const allConversations = async (req, res) => {
+  try {
+    const conversations = await Conversation.find({});
+    res.json(conversations);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

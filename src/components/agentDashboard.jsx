@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 // const API_BASE = "/api/agents";
-const API_BASE = "http://localhost:3000/api/agents";
+const API_BASE = "http://localhost:3000/agents";
 
 function AgentDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -95,7 +95,7 @@ function AgentDashboard() {
       KnowledgeBase: {
         Type: "General",
       },
-      status: "active",
+      Status: "active",
     };
 
     try {
@@ -152,7 +152,7 @@ function AgentDashboard() {
     const dupPayload = {
       AgentID: `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       AgentName: `${getName(agent)} (Copy)`,
-      status: getStatus(agent),
+      Status: getStatus(agent),
       Capabilities: getCapabilities(agent),
       Description: agent?.Description ?? "",
       Specialization: agent?.Specialization ?? "",
@@ -218,7 +218,7 @@ function AgentDashboard() {
       const res = await fetch(`${API_BASE}/${_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus, UpdatedAt: new Date().toISOString() }),
+        body: JSON.stringify({ Status: newStatus, UpdatedAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error(`Toggle failed: ${res.status}`);
       const updated = await res.json();
