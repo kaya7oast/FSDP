@@ -9,7 +9,9 @@ import {
   getAllConversations,
   deleteConversation,
   summarizeConversation,
+  allConversations,
 } from "./controllers/conversationController.js";
+import { all } from "axios";
 
 dotenv.config();
 const app = express();
@@ -27,6 +29,8 @@ app.get("/conversations/:conversationId", getConversation);
 app.get("/conversations/user/:userId", getAllConversations);
 app.post("/conversations/:conversationId/delete", deleteConversation);
 app.post("/conversations/:conversationId/summarize", summarizeConversation);
+app.get("/conversations", allConversations);
+
 
 app.listen(process.env.PORT, () =>
   console.log(`🟦 Conversation Service running on ${process.env.PORT}`)

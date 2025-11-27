@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-// const API_BASE = "/api/agents";
-const API_BASE = "http://localhost:3000/api/agents";
 
 function AgentDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -15,7 +13,6 @@ function AgentDashboard() {
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
 
-  // Apply dark mode class to root div
   const rootClassName = darkMode ? "dark" : "";
 
   // Fetch agents on mount
@@ -25,7 +22,8 @@ function AgentDashboard() {
 
   const fetchAgents = async () => {
     try {
-      const res = await fetch(API_BASE);
+      // 1. Using relative path, assuming proxy handles routing: /agents -> http://localhost:3000/agents
+      const res = await fetch("/agents");
       
       if (!res.ok) throw new Error("Failed to fetch agents");
       const data = await res.json();
@@ -33,7 +31,10 @@ function AgentDashboard() {
       setAgents(Array.isArray(data) ? data : []);
       return data;
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching agents:", err);
+      // Optional: Show an alert if fetching fails completely
+      // setAlertMessage("Error connecting to agent API. Data may be stale.");
+      // setShowAlertModal(true);
       setAgents([]);  
       return [];
     }
@@ -44,7 +45,7 @@ function AgentDashboard() {
   const getStatus = (agent) => (agent?.status ?? agent?.Status ?? "active");
   const getCapabilities = (agent) => agent?.Capabilities ?? [];
 
-  // Filtered list
+  // Filtered list (rest of filtering logic remains sound)
   const filteredAgents = agents.filter((agent) => {
     const name = String(getName(agent)).toLowerCase();
     const tags = getCapabilities(agent).map(String);
@@ -68,7 +69,7 @@ function AgentDashboard() {
     return matchesSearch && matchesStatus && matchesCapability;
   });
 
-  // Top performers (no interactions field in DB). We'll show newest agents as "top"
+  // Top performers (show newest agents)
   const topPerformers = [...filteredAgents]
     .sort((a, b) => {
       const ta = new Date(a?.CreatedAt || a?.UpdatedAt || 0).getTime();
@@ -77,51 +78,8 @@ function AgentDashboard() {
     })
     .slice(0, 3);
 
-  // CREATE
-  const handleCreateAgent = async (formData) => {
-    const AgentID = `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    const newAgentPayload = {
-      AgentID,
-      AgentName: formData.AgentName.trim(),
-      Description: formData.Description || "",
-      Specialization: formData.Specialization || "",
-      Capabilities: formData.Capabilities || [],
-      Personality: {
-        Tone: formData.Tone || undefined,
-        LanguageStyle: formData.LanguageStyle || undefined,
-        Emotion: formData.Emotion || undefined,
-      },
-      KnowledgeBase: {
-        Type: "General",
-      },
-      status: "active",
-    };
-
-    try {
-      const res = await fetch(API_BASE, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newAgentPayload),
-      });
-
-      if (!res.ok) throw new Error("Failed to create agent");
-
-      const createdAgent = await res.json();
-      setAgents((prev) => [...prev, createdAgent]);
-      setAlertMessage("Agent created successfully!");
-      setShowAlertModal(true);
-      return createdAgent;
-    } catch (err) {
-      console.error("Error creating agent:", err);
-      setAlertMessage("Failed to create agent.");
-      setShowAlertModal(true);
-      return null;
-    }
-  };
-
-
-  // DELETE (your server offers POST /api/agents/:agentId/delete)
+  
+  // ⚡️ DELETE AGENT
   const handleDeleteAgent = async (_id) => {
     const agent = agents.find((a) => a._id === _id);
     const nameForConfirm = getName(agent);
@@ -131,51 +89,28 @@ function AgentDashboard() {
       return;
 
     try {
-      const res = await fetch(`${API_BASE}/${_id}/delete`, {
-        method: "POST",
+      // Using relative path for routing
+      const res = await fetch(`/agents/${_id}/delete`, {
+        method: "POST", // Server expects POST
       });
-      if (!res.ok) throw new Error("Failed to delete agent");
-      const deleted = await res.json();
-      setAgents((prev) => prev.filter((a) => a._id !== _id));
-      return deleted;
+      
+      if (!res.ok) throw new Error(`Failed to delete agent. Status: ${res.status}`);
+      
+      // 2. FIX: Synchronize state by re-fetching all agents from the database
+      await fetchAgents(); 
+      setAlertMessage(`Success: Agent "${nameForConfirm}" deleted.`);
+      setShowAlertModal(true);
+      
     } catch (err) {
-      console.error(err);
-      return null;
+      console.error("Error deleting agent (check ID format):", err);
+      // This is where you likely see the "Cast to ObjectId failed" error
+      setAlertMessage(`Error: Failed to delete agent "${nameForConfirm}". Check console for Mongoose/ID errors.`);
+      setShowAlertModal(true);
     }
   };
 
-  // DUPLICATE (client-side + POST to create)
-  const handleDuplicateAgent = async (_id) => {
-    const agent = agents.find((a) => a._id === _id);
-    if (!agent) return;
 
-    const dupPayload = {
-      AgentID: `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      AgentName: `${getName(agent)} (Copy)`,
-      status: getStatus(agent),
-      Capabilities: getCapabilities(agent),
-      Description: agent?.Description ?? "",
-      Specialization: agent?.Specialization ?? "",
-      Personality: agent?.Personality ?? { Tone: "", LanguageStyle: "", Emotion: "" },
-      KnowledgeBase: agent?.KnowledgeBase ?? { Type: "General" },
-    };
-
-    try {
-      const res = await fetch(API_BASE, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dupPayload),
-      });
-      if (!res.ok) throw new Error(`Duplicate failed: ${res.status}`);
-      const created = await res.json();
-      setAgents((prev) => [...prev, created]);
-    } catch (err) {
-      console.error("Error duplicating agent:", err);
-      alert("Failed to duplicate agent. Check console for details.");
-    }
-  };
-
-  // EDIT (attempt a PUT to conventional route; add route server-side if missing)
+  // ⚡️ EDIT AGENT
   const handleEditAgent = async (_id) => {
     const agent = agents.find((a) => a._id === _id);
     if (!agent) return;
@@ -190,23 +125,27 @@ function AgentDashboard() {
     };
 
     try {
-      const res = await fetch(`${API_BASE}/${_id}`, {
-        method: "PUT", // ensure server supports this route
+      // Using relative path for routing
+      const res = await fetch(`/agents/${_id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatePayload),
       });
       if (!res.ok) throw new Error(`Update failed: ${res.status}`);
-      const updated = await res.json();
-      setAgents((prev) => prev.map((a) => (a._id === _id ? updated : a)));
+      
+      // 2. FIX: Synchronize state by re-fetching all agents
+      await fetchAgents();
+      setAlertMessage(`Success: Agent "${newName.trim()}" updated.`);
+      setShowAlertModal(true);
+      
     } catch (err) {
       console.error("Error updating agent:", err);
-      alert(
-        "Failed to update agent. If this persists, ensure your server has a PUT /api/agents/:agentId route."
-      );
+      setAlertMessage("Failed to update agent. Ensure your server has a PUT /agents/:agentId route.");
+      setShowAlertModal(true);
     }
   };
 
-  // TOGGLE STATUS (Active <-> Archived). Uses conventional PUT route.
+  // ⚡️ TOGGLE STATUS
   const handleToggleStatus = async (_id) => {
     const agent = agents.find((a) => a._id === _id);
     if (!agent) return;
@@ -215,25 +154,88 @@ function AgentDashboard() {
     const newStatus = current === "active" ? "archived" : "active";
 
     try {
-      const res = await fetch(`${API_BASE}/${_id}`, {
+      // Using relative path for routing
+      const res = await fetch(`/agents/${_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus, UpdatedAt: new Date().toISOString() }),
+        body: JSON.stringify({ Status: newStatus, UpdatedAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error(`Toggle failed: ${res.status}`);
-      const updated = await res.json();
-      setAgents((prev) => prev.map((a) => (a._id === _id ? updated : a)));
+      
+      // 2. FIX: Synchronize state by re-fetching all agents
+      await fetchAgents(); 
+      setAlertMessage(`Success: Agent status changed to "${newStatus}".`);
+      setShowAlertModal(true);
+      
     } catch (err) {
       console.error("Error toggling status:", err);
-      alert(
-        "Failed to toggle status. If this persists, ensure your server has a PUT /api/agents/:agentId route."
-      );
+      setAlertMessage("Failed to toggle status. Ensure your server has a PUT /agents/:agentId route.");
+      setShowAlertModal(true);
     }
   };
 
+  // ⚡️ CREATE AGENT (Missing Implementation)
+  const handleCreateAgent = async (formData) => {
+    try {
+      // POST to base route to create a new agent
+      const res = await fetch(`/agents`, { 
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+      });
+      if (!res.ok) throw new Error(`Creation failed: ${res.status}`);
+      
+      const newAgent = await res.json();
+      
+      // 2. FIX: Synchronize state by re-fetching all agents
+      await fetchAgents(); 
+      
+      setAlertMessage(`Success: Agent "${getName(newAgent)}" created.`);
+      setShowAlertModal(true);
+      
+    } catch (err) {
+      console.error("Error creating agent:", err);
+      setAlertMessage(`Error: Failed to create agent.`);
+      setShowAlertModal(true);
+    }
+  };
+  
+  // ⚡️ DUPLICATE AGENT (Missing Implementation)
+  const handleDuplicateAgent = async (_id) => {
+    const agent = agents.find((a) => a._id === _id);
+    if (!agent) return;
+
+    // Create a new payload without unique database IDs/timestamps
+    const { _id: originalId, CreatedAt, UpdatedAt, ...dataToDuplicate } = agent;
+    const newName = `Copy of ${getName(agent)}`;
+
+    try {
+        // POST to base route to create a new agent (duplicate)
+        const res = await fetch(`/agents`, { 
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...dataToDuplicate, AgentName: newName }),
+        });
+        if (!res.ok) throw new Error(`Duplication failed: ${res.status}`);
+        
+        // 2. FIX: Synchronize state by re-fetching all agents
+        await fetchAgents(); 
+        
+        setAlertMessage(`Success: Agent "${newName}" duplicated successfully!`);
+        setShowAlertModal(true);
+        
+    } catch (err) {
+        console.error("Error duplicating agent:", err);
+        setAlertMessage(`Error: Failed to duplicate agent "${getName(agent)}".`);
+        setShowAlertModal(true);
+    }
+  };
+  
   return (
     <div className={rootClassName}>
       <div className="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark min-h-screen flex flex-col">
+        {/* ... (JSX body remains the same) ... */}
+        
         <header className="sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm border-b border-border-light dark:border-border-dark px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
@@ -249,7 +251,14 @@ function AgentDashboard() {
               <Link className="text-sm font-semibold text-primary transition-colors" to="#">
                 Dashboard
               </Link>
-              <Link className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" to="/builder">
+              <Link 
+                className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" 
+                to="/builder"
+                onClick={(e) => {
+                    e.preventDefault();
+                    setShowCreateModal(true); // Direct action to modal
+                }}
+              >
                 Create new agent
               </Link>
               <Link className="text-sm text-text-light dark:text-text-dark hover:text-primary transition-colors" to="/agents">
@@ -292,13 +301,6 @@ function AgentDashboard() {
                   {agents.filter((a) => String(getStatus(a)).toLowerCase() === "active").length} active
                 </p>
               </div>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center justify-center rounded-lg h-12 px-6 bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md active:scale-95"
-              >
-                <span className="material-symbols-outlined mr-2">add</span>
-                <span className="truncate">Create New Agent</span>
-              </button>
             </div>
 
             <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -320,10 +322,10 @@ function AgentDashboard() {
                     <AgentCard
                       key={agent._id}
                       agent={agent}
-                      onEdit={() => handleEditAgent(agent._id)}
-                      onDuplicate={() => handleDuplicateAgent(agent._id)}
-                      onDelete={() => handleDeleteAgent(agent._id)}
-                      onToggleStatus={() => handleToggleStatus(agent._id)}
+                      onEdit={() => handleEditAgent(agent.AgentID)}
+                      onDuplicate={() => handleDuplicateAgent(agent.AgentID)}
+                      onDelete={() => handleDeleteAgent(agent.AgentID)}
+                      onToggleStatus={() => handleToggleStatus(agent.AgentID)}
                     />
                   ))}
 
@@ -365,6 +367,7 @@ function AgentDashboard() {
   );
 }
 
+// ... (Rest of the helper components: HeaderButton, NotificationDropdown, etc. remain the same) ...
 function HeaderButton({ icon, onClick, badge }) {
   return (
     <button onClick={onClick} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors relative">
@@ -379,7 +382,6 @@ function HeaderButton({ icon, onClick, badge }) {
 }
 
 function NotificationDropdown({ onClose, onRefresh }) {
-  // no local fetch here — use onRefresh provided by parent when needed
   return (
     <div className="absolute top-16 right-4 w-80 bg-white dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg shadow-lg py-2 z-50">
       <div className="px-4 py-2 border-b border-border-light dark:border-border-dark flex items-center justify-between">
@@ -825,7 +827,7 @@ function UsageStats({ topPerformers, agentCount }) {
           {topPerformers.length > 0 ? (
             <ul className="space-y-3">
               {topPerformers.map((agent, idx) => (
-                <li key={agent._id} className="flex items-center justify-between group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors">
+                <li key={agent.AgentID} className="flex items-center justify-between group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-inactive">#{idx + 1}</span>
                     <p className="text-sm font-medium">{agent?.AgentName}</p>

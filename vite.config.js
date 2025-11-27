@@ -4,11 +4,13 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // vite.config.js
   server: {
     proxy: {
-      '/agents': 'http://127.0.0.1:3000',        // <--- Changed to 127.0.0.1
-      '/conversations': 'http://127.0.0.1:3000',  // <--- Changed to 127.0.0.1
-      '/ai': 'http://127.0.0.1:3000'              // <--- Changed to 127.0.0.1
+      '/agents': 'http://localhost:3000',
+      '/conversations': 'http://localhost:3000',
     }
   }
 })
+
+

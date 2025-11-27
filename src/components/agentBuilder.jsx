@@ -96,24 +96,52 @@ const AgentBuilder = () => {
           : formData.Capabilities
       };
 
-      const response = await fetch('/agents', { 
+  const removeIntegration = (integration) => {
+    const updatedIntegrations = integrations.filter(item => item !== integration);
+    setIntegrations(updatedIntegrations);
+    setFormData(prev => ({
+      ...prev,
+      Integration: {
+        ...prev.Integration,
+        ConnectedAPIs: updatedIntegrations
+      },
+      UpdatedAt: new Date().toISOString()
+    }));
+  };
+
+  const handleSaveAgent = async () => {
+    try {
+      const agentData = {
+        ...formData,
+        Capabilities: formData.Capabilities.split(',').map(item => item.trim()).filter(item => item),
+      };
+
+      // Send to your Express server (running on port 3000 or whatever your app.js uses)
+      const response = await fetch('http://localhost:3000/agents', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(agentData),
       });
 
+      // Normalize handling: agent-service returns the saved agent object on success.
+      const result = await response.json().catch(() => null);
+
       if (response.ok) {
-        alert('Agent deployed successfully!');
+        alert('Agent saved successfully to database!');
         navigate('/dashboard');
       } else {
-        const errorData = await response.json();
-        alert('Error saving agent: ' + (errorData.error || 'Unknown error'));
+        const errMsg = result && result.error ? result.error : JSON.stringify(result) || 'Unknown error';
+        alert('Error saving agent: ' + errMsg);
+        // keep user on page so they can retry/edit
       }
     } catch (error) {
       console.error('Error saving agent:', error);
-      alert('Network error. Ensure backend is running on port 3000.');
+      alert('Error saving agent. Check console for details.');
+      // keep user on page to try again
     }
-};
+  };
 
   const handleToneChange = (value) => {
     const toneMap = {
