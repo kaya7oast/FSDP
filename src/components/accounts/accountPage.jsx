@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { db } from "../firebaseConfig";
+import { useAuth } from "../../context/AuthContext";
+import { db } from "../../firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "./Sidebar"; // Re-using your existing Sidebar
+import Sidebar from "../Sidebar.jsx"; // Fixed import path
 
 export default function AccountPage() {
   const { currentUser, logout } = useAuth();
@@ -19,8 +19,12 @@ export default function AccountPage() {
   }, [currentUser]);
 
   const handleLogout = async () => {
-    await logout();
-    navigate("/login");
+    try {
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
   };
 
   return (
@@ -29,9 +33,15 @@ export default function AccountPage() {
       <main className="flex-1 p-8">
         <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm mb-8 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <img src={currentUser?.photoURL} alt="Profile" className="w-16 h-16 rounded-full" />
+            <img 
+              src={currentUser?.photoURL || "https://via.placeholder.com/150"} 
+              alt="Profile" 
+              className="w-16 h-16 rounded-full" 
+            />
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{currentUser?.displayName}</h1>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+                {currentUser?.displayName || "User"}
+              </h1>
               <p className="text-slate-500">{currentUser?.email}</p>
               <p className="text-xs text-blue-500 mt-1">{profile.role || "User"}</p>
             </div>

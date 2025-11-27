@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { db } from "../firebaseConfig";
+import { db } from "../../firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
-import Sidebar from "./Sidebar";
+import Sidebar from "../../components/Sidebar";
 
 export default function UserDirectory() {
   const [users, setUsers] = useState([]);
