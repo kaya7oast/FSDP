@@ -43,6 +43,8 @@ export default function Sidebar() {
               <span>Conversations</span>
             </NavLink>
           </li>
+        </ul>
+      </nav>
 
       {/* User Profile / Footer */}
       <div className="mt-auto pt-6 border-t border-slate-200 dark:border-slate-800">
