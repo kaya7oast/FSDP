@@ -20,7 +20,7 @@ const agentSchema = new mongoose.Schema({
     UserID: String,
     UserName: String,
   },
-  status: { type: String, enum: ["active", "deleted"], default: "active" }
+  Status: { type: String, enum: ["active", "deleted"], default: "active" }
 });
 
 // Auto-generate AgentID before saving
