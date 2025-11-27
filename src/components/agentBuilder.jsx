@@ -111,36 +111,38 @@ const AgentBuilder = () => {
   };
 
   const handleSaveAgent = async () => {
-  try {
-    const agentData = {
-      ...formData,
-      Capabilities: formData.Capabilities.split(',').map(item => item.trim()).filter(item => item),
-    };
+    try {
+      const agentData = {
+        ...formData,
+        Capabilities: formData.Capabilities.split(',').map(item => item.trim()).filter(item => item),
+      };
 
-    // Send to your Express server (running on port 3000 or whatever your app.js uses)
-    const response = await fetch('http://localhost:3000/api/agents', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(agentData),
-    });
+      // Send to your Express server (running on port 3000 or whatever your app.js uses)
+      const response = await fetch('http://localhost:3000/agents', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(agentData),
+      });
 
-    const result = await response.json();
+      // Normalize handling: agent-service returns the saved agent object on success.
+      const result = await response.json().catch(() => null);
 
-    if (result.success) {
-      alert('Agent saved successfully to database!');
-      navigate('/dashboard');
-    } else {
-      alert('Error saving agent: ' + result.error);
-      navigate('/dashboard');
+      if (response.ok) {
+        alert('Agent saved successfully to database!');
+        navigate('/dashboard');
+      } else {
+        const errMsg = result && result.error ? result.error : JSON.stringify(result) || 'Unknown error';
+        alert('Error saving agent: ' + errMsg);
+        // keep user on page so they can retry/edit
+      }
+    } catch (error) {
+      console.error('Error saving agent:', error);
+      alert('Error saving agent. Check console for details.');
+      // keep user on page to try again
     }
-  } catch (error) {
-    console.error('Error saving agent:', error);
-    alert('Error saving agent. Check console for details.');
-    navigate('/dashboard');
-  }
-};
+  };
 
   const handleToneChange = (value) => {
     const toneMap = {

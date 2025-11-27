@@ -43,7 +43,8 @@ export const getAllAgents = async (req, res) => {
 // GET active agents
 export const getActiveAgents = async (req, res) => {
   try {
-    const agents = await Agent.find({ status: "active" });
+    // Model uses `Status` field (capitalized) so query for that
+    const agents = await Agent.find({ Status: "Active" });
     res.json(agents);
   } catch (err) {
     res.status(500).json({ error: err.message });
