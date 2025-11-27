@@ -1,105 +1,76 @@
 @import "tailwindcss";
 
-:root {
+@theme {
+  /* Refined Color Palette */
   --color-primary: #3b82f6;
-  --color-success: #22c55e;
+  --color-primary-dark: #2563eb;
+  --color-secondary: #64748b;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
   --color-danger: #ef4444;
-  --color-inactive: #9ca3af;
-  --color-background: #ffffff;
-  --color-background-dark: #1a1a1a;
-  --color-text: #111827;
-  --color-text-dark: #ffffff;
-  --color-border: #e5e7eb;
-  --color-border-dark: #2a2a2a;
   
-  /* Base styles */
-  font-family: 'Inter', sans-serif;
-  line-height: 1.5;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Backgrounds */
+  --color-background-light: #f8fafc;
+  --color-background-dark: #0f172a;
+  
+  /* Text */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-dark-primary: #f1f5f9;
+  --color-text-dark-secondary: #94a3b8;
+
+  /* Animations */
+  --animate-fade-in: fadeIn 0.5s ease-out;
+  --animate-slide-up: slideUp 0.5s ease-out;
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 }
 
-/* Dark mode */
-.dark {
-  --color-background: #1a1a1a;
-  --color-text: #ffffff;
-  --color-border: #2a2a2a;
+/* Base Layer */
+@layer base {
+  body {
+    @apply bg-background-light text-text-primary antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .dark body {
+    @apply bg-background-dark text-text-dark-primary;
+  }
 }
 
-/* Base elements */
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background-color: var(--color-background);
-  color: var(--color-text);
+/* Component Layer */
+@layer components {
+  /* Glassmorphism Card Effect */
+  .glass-card {
+    @apply bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300;
+  }
+
+  /* Modern Input Fields */
+  .modern-input {
+    @apply w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all duration-200;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 dark:bg-slate-600 rounded-full hover:bg-slate-400 dark:hover:bg-slate-500;
+  }
 }
 
-/* Material Icons settings */
+/* Material Icons fix */
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-
-/* Custom utility classes */
-.size-10 {
-  width: 2.5rem;
-  height: 2.5rem;
-}
-
-/* Transitions */
-.transition-colors {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-.transition-shadow {
-  transition-property: box-shadow;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 300ms;
-}
-
-/* Links */
-a {
-  text-decoration: none;
-  color: inherit;
-}
-
-/* Button reset */
-button {
-  cursor: pointer;
-  border: none;
-  background: none;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  color: inherit;
-}
-
-/* Focus styles */
-*:focus {
-  outline: none;
-}
-*:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined');
-
-.material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-
-.sidebar {
-  position: sticky;
-  top: 1rem;
-  align-self: flex-start;
-  height: calc(100vh - 2rem);
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  z-index: 10;
 }
