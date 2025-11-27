@@ -1,11 +1,6 @@
 import Conversation from "../models/conversationModel.js";
-
-// -------------------------
-// Test route
-// -------------------------
-export const test = (req, res) => {
-  res.json({ message: "Test route working!" });
-};
+import Agent from "../models/agentDBModel.js"; // Import Agent model
+import { generateAIResponse } from "../../services/aiService.js"; // Import AI Service
 
 // -------------------------
 // Chat with agent
@@ -15,52 +10,85 @@ export const chatWithAgent = async (req, res) => {
     const { agentId } = req.params;
     const { userId, message } = req.body;
 
+    // 1. Validate Agent exists
+    const agent = await Agent.findById(agentId);
+    if (!agent) {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+
+    // 2. Find or Create Conversation
     let conversation = await Conversation.findOne({ userId, agentId });
 
     if (!conversation) {
       conversation = new Conversation({
-        conversationId: Date.now().toString(),
+        conversationId: `CONV-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
         userId,
         agentId,
-        messages: [],
+        messages: []
       });
     }
 
-    // Add user message
+    // 3. Add User Message
     conversation.messages.push({
       role: "user",
       content: message,
+      createdAt: new Date()
     });
 
-    // Add simulated agent response
-    conversation.messages.push({
+    // 4. Prepare Context for AI
+    // Construct a system prompt based on the Agent's DB profile
+    const systemPrompt = `You are ${agent.AgentName}. 
+    Description: ${agent.Description || "A helpful assistant."}
+    Personality: ${agent.Personality?.Tone || "Neutral"} and ${agent.Personality?.LanguageStyle || "Concise"}.
+    Capabilities: ${agent.Capabilities?.join(", ") || "General tasks"}.
+    Keep responses helpful and relevant to your persona.`;
+
+    const messagesForAI = [
+      { role: "system", content: systemPrompt },
+      ...conversation.messages.slice(-10).map(msg => ({ // Send last 10 messages for context
+        role: msg.role,
+        content: msg.content
+      }))
+    ];
+
+    // 5. Call AI Service
+    // Defaulting to "openai" provider, but you can pass this in req.body if needed
+    const aiResponseContent = await generateAIResponse("openai", messagesForAI);
+
+    // 6. Add AI Message
+    const aiMessage = {
       role: "assistant",
-      content: "I'm processing your request.",
-    });
+      content: aiResponseContent,
+      createdAt: new Date()
+    };
+    conversation.messages.push(aiMessage);
 
+    // 7. Save and Return
     await conversation.save();
 
-    res.json(conversation);
+    // Return the specific response object expected by the frontend
+    res.json({ 
+      reply: aiMessage,
+      conversationId: conversation.conversationId
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Backend error" });
+    console.error("Chat Error:", err);
+    res.status(500).json({ error: "Failed to process chat message" });
   }
 };
 
-// -------------------------
-// Get a conversation
-// -------------------------
+// ... keep other exports like getConversation, summarizeConversation, etc. if they exist ...
+// For completeness of this file based on your previous uploads:
+
 export const getConversation = async (req, res) => {
   try {
     const { userId, agentId } = req.params;
-
     const conversation = await Conversation.findOne({ userId, agentId });
     if (!conversation) return res.status(404).json({ error: "Conversation not found" });
-
     res.json(conversation);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Backend error" });
+    res.status(500).json({ error: err.message });
   }
 };
 
