@@ -1,22 +1,28 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import AgentHomepage from './components/AgentHomepage.jsx'
-import AgentConversation from './components/agentConversation.jsx/page.jsx'
-import AgentDashboard from './components/agentDashboard.jsx'
-import AgentBuilder from './components/agentBuilder.jsx'
+import './index.css'
+
+import Layout from './components/Layout';
+import AgentDashboard from './components/agentDashboard';
+import AgentBuilder from './components/agentBuilder';
+import AgentConversation from './components/agentConversation.jsx/page';
+import AgentAnalytics from './components/agentAnalytics';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<AgentHomepage />} />
-        <Route path="/conversations" element={<AgentConversation />} />
-        <Route path="/dashboard" element={<AgentDashboard />} />
-        <Route path="/builder" element={<AgentBuilder />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route element={<Layout />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<AgentDashboard />} />
+          <Route path="/analytics" element={<AgentAnalytics />} />
+          <Route path="/conversations" element={<AgentConversation />} />
+          <Route path="/builder" element={<AgentBuilder />} />
+          <Route path="/builder/:agentId" element={<AgentBuilder />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
-)
+);
