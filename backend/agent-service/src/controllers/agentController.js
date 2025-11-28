@@ -4,6 +4,9 @@ import Agent from "../models/agentModel.js";
 export const addAgent = async (req, res) => {
   try {
     const agent = new Agent(req.body); // pre-save hook triggers here
+    if (agent.AgentID) {
+      agent.AgentID = null;
+    }
     await agent.save();
     res.json(agent);
   } catch (err) {
@@ -68,9 +71,9 @@ export const updateAgent = async (req, res) => {
 // DELETE agent
 export const deleteAgent = async (req, res) => {
   try {
-    const agent = await Agent.findByIdAndUpdate(
-      req.params.agentId,
-      { status: "deleted" },
+    const agent = await Agent.findOneAndUpdate(
+      { AgentID: String(req.params.agentId) },
+      { Status: "deleted" },
       { new: true }
     );
     res.json(agent);
