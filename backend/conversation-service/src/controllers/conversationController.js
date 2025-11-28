@@ -68,10 +68,27 @@ export const chatWithAgent = async (req, res) => {
     // -----------------------------
     // 1. Fetch Agent from agent-service
     // -----------------------------
-    const agent = await getAgentbyId(agentId);
+    const agentResponse = await getAgentbyId(agentId);
+    console.log('agentResponse:', agentResponse);
+
+    // Correctly access the agent object
+    const agent = agentResponse.agent;
+
     if (!agent) return res.status(404).json({ error: "Agent not found" });
 
-    console.log("Fetched Agent:", agent);
+    // -----------------------------
+    // 1a. Ensure Personality exists
+    // -----------------------------
+    if (
+      !agent.Personality ||
+      !agent.Personality.Tone ||
+      !agent.Personality.LanguageStyle ||
+      !agent.Personality.Emotion
+    ) {
+      throw new Error(`Agent ${agent.AgentID || agentId} does not have Personality defined.`);
+    }
+
+    const systemMessage = `You are ${agent.AgentName}. You have a ${agent.Personality.Tone.toLowerCase()} tone, communicate in a ${agent.Personality.LanguageStyle.toLowerCase()} style, and maintain a ${agent.Personality.Emotion.toLowerCase()} attitude. Respond to the user accordingly.`;
 
     // -----------------------------
     // 2. Retrieve or Create Conversation
@@ -80,6 +97,10 @@ export const chatWithAgent = async (req, res) => {
 
     if (conversationId) {
       conversation = await Conversation.findOne({ conversationId });
+    }
+
+    if (!conversation) {
+      conversation = await Conversation.findOne({ userId, agentId });
     }
 
     if (!conversation) {
@@ -94,8 +115,7 @@ export const chatWithAgent = async (req, res) => {
         messages: [
           {
             role: "system",
-            // Example personality prompt — replace later
-            content: `You are Speech Master, a Smart. Your abilities: 10 words only.`,
+            content: systemMessage,
             createdAt: new Date().toISOString(),
           },
         ],
@@ -125,9 +145,7 @@ export const chatWithAgent = async (req, res) => {
       createdAt: new Date().toISOString(),
     };
 
-    // Save reply
     conversation.messages.push(reply);
-
     await conversation.save();
 
     // -----------------------------
@@ -140,9 +158,12 @@ export const chatWithAgent = async (req, res) => {
 
   } catch (err) {
     console.error("chatWithAgent error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: err.message || "Internal server error" });
   }
 };
+
+
+
 
 
 
