@@ -18,4 +18,15 @@ export default function routes(app) {
       changeOrigin: true
     })
   );
+  
+  app.use(
+    "/ai",
+    createProxyMiddleware({
+      target: "http://ai-service:4000",
+      changeOrigin: true,
+      pathRewrite: {
+        '^/ai': '', // Removes '/ai' so the service sees '/generate'
+      },
+    })
+  );
 }
