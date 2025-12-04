@@ -6,16 +6,12 @@ const AGENT_SERVICE_URL = process.env.AGENT_SERVICE; // e.g., http://agent-servi
 
 // Helper: fetch agent details from agent-service
 async function getAgentbyId(agentId) {
-  if (!AGENT_SERVICE_URL) {
-    console.error("AGENT_SERVICE URL not configured");
-    return null;
-  }
-
+  if (!AGENT_SERVICE_URL) return null;
   try {
     const resp = await axios.get(`${AGENT_SERVICE_URL}/agents/${agentId}`);
-    return resp.data;
+    return resp.data; // Expected: { agent: { ... } }
   } catch (err) {
-    console.error("getAgentbyId error:", err?.response?.data || err.message || err);
+    console.error(`Error fetching agent ${agentId}:`, err.message);
     return null;
   }
 }
@@ -65,40 +61,69 @@ export const chatWithAgent = async (req, res) => {
   } = req.body;
 
   try {
-    // -----------------------------
-    // 1. Fetch Agent from agent-service
-    // -----------------------------
     const agentResponse = await getAgentbyId(agentId);
-    console.log('agentResponse:', agentResponse);
-
-    // Correctly access the agent object
-    const agent = agentResponse.agent;
-
-    if (!agent) return res.status(404).json({ error: "Agent not found" });
-
-    // -----------------------------
-    // 1a. Ensure Personality exists
-    // -----------------------------
-    if (
-      !agent.Personality ||
-      !agent.Personality.Tone ||
-      !agent.Personality.LanguageStyle ||
-      !agent.Personality.Emotion
-    ) {
-      throw new Error(`Agent ${agent.AgentID || agentId} does not have Personality defined.`);
+    
+    // SAFETY CHECK 1
+    if (!agentResponse || !agentResponse.agent) {
+      console.error("Agent not found in Agent Service");
+      return res.status(404).json({ error: "Agent not found" });
     }
 
-    const systemMessage = `You are ${agent.AgentName}. You have a ${agent.Personality.Tone.toLowerCase()} tone, communicate in a ${agent.Personality.LanguageStyle.toLowerCase()} style, and maintain a ${agent.Personality.Emotion.toLowerCase()} attitude. Respond to the user accordingly.`;
+    const agent = agentResponse.agent;
 
-    // -----------------------------
-    // 2. Retrieve or Create Conversation
-    // -----------------------------
+
+
+    const personality = agent.Personality || {};
+
+    const tone = personality.Tone || "helpful";
+
+    const style = personality.LanguageStyle || "concise";
+
+    const emotion = personality.Emotion || "neutral";
+
+
+    const capabilities = Array.isArray(agent.Capabilities) 
+
+      ? agent.Capabilities.join(", ") 
+
+      : (agent.Capabilities || "General Assistance");
+
+
+    const systemMessage = `
+
+      You are ${agent.AgentName || "an AI Assistant"}.
+
+      YOUR IDENTITY:
+
+      - Role: ${agent.Specialization || "Assistant"}
+
+      - Mission: ${agent.Description || "Help the user."}
+
+      - Capabilities: ${capabilities}
+    
+      YOUR PERSONALITY:
+
+      - Tone: ${tone}
+
+      - Style: ${style}
+
+      - Attitude: ${emotion}
+
+      INSTRUCTIONS:
+
+      Stay in character. Use your specific capabilities to help the user. 
+
+      If asked what you can do, list your specific capabilities.
+
+    `;
+
     let conversation = null;
 
     if (conversationId) {
       conversation = await Conversation.findOne({ conversationId });
     }
 
+    // Fallback: Check if we have an existing convo for this user/agent
     if (!conversation) {
       conversation = await Conversation.findOne({ userId, agentId });
     }
@@ -111,7 +136,7 @@ export const chatWithAgent = async (req, res) => {
         userId,
         agentId,
         provider,
-        chatname: chatname || `Chat with ${agent.AgentName}`,
+        chatname: chatname || `Chat with ${agent.AgentName || "Agent"}`,
         messages: [
           {
             role: "system",
@@ -122,21 +147,14 @@ export const chatWithAgent = async (req, res) => {
       });
     }
 
-    // -----------------------------
-    // 3. Add user message
-    // -----------------------------
     conversation.messages.push({
       role: "user",
       content: message,
       createdAt: new Date().toISOString(),
     });
 
-    // Only send last 10 messages to AI
     const messagesToSend = conversation.messages.slice(-10);
 
-    // -----------------------------
-    // 4. Get AI response
-    // -----------------------------
     const replyText = await generateAIResponse(provider, messagesToSend);
 
     const reply = {
@@ -148,24 +166,16 @@ export const chatWithAgent = async (req, res) => {
     conversation.messages.push(reply);
     await conversation.save();
 
-    // -----------------------------
-    // 5. Return reply
-    // -----------------------------
     res.json({ 
       reply, 
       conversationId: conversation.conversationId 
     });
 
   } catch (err) {
-    console.error("chatWithAgent error:", err);
+    console.error("chatWithAgent Critical Error:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
   }
 };
-
-
-
-
-
 
 // Get conversation
 export const getConversation = async (req, res) => {
