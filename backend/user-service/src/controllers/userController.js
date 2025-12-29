@@ -78,27 +78,45 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ username });
+    // ✅ MUST select password explicitly
+    const user = await User
+      .findOne({ username })
+      .select("+password");
+
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
-    console.log("Found user:", user);
-    console.log("password to check:", user.password);
+
+    console.log("Found user:", user.username);
+    console.log("password exists:", !!user.password);
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
-    token = jwt.sign({ userId: user.userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-    res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
+    // ✅ DECLARE token
+    const token = jwt.sign(
+      { userId: user.userId },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
 
-    res.json({ message: "Login successful" });
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production"
+    });
+
+    res.json({
+      message: "Login successful",
+      userId: user.userId
+    });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 export const registerUser = async (req, res) => {
   try {
