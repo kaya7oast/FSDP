@@ -53,6 +53,19 @@ services:
       - "4000:4000"
     networks:
       - backend
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    environment:
+      PORT: 4003
+      MONGO_URI: ${USER_DB}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "4003:4003"
+    networks:
+    - backend
+
+    
 
 networks:
   backend:
