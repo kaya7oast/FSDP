@@ -109,7 +109,8 @@ export const loginUser = async (req, res) => {
 
     res.json({
       message: "Login successful",
-      userId: user.userId
+      userId: user.userId,
+      token
     });
 
   } catch (err) {
