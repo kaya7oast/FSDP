@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import VoiceAssistant from './VoiceAssistant'; // Import the new component
 
 const Layout = () => {
   return (
@@ -13,6 +14,9 @@ const Layout = () => {
         <main className="flex-1 overflow-y-auto scrollbar-hide">
           <Outlet />
         </main>
+        
+        {/* Floating Voice Assistant (Bottom Right) */}
+        <VoiceAssistant />
       </div>
     </div>
   );
