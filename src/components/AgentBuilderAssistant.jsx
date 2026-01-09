@@ -15,6 +15,7 @@ const AgentBuilderAssistant = ({ onUpdateForm, onComplete }) => {
       CRITICAL OUTPUT RULE:
       If you have enough information to define the agent, output ONLY a valid JSON object in this format:
       {
+      +
         "AgentName": "Name",
         "Description": "Description",
         "Specialization": "Specialization",
