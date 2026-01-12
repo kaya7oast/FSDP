@@ -1,120 +1,130 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
 import ReactFlow, { 
   addEdge, 
   Background, 
   Controls, 
-  MiniMap,
   useNodesState,
   useEdgesState,
   ReactFlowProvider,
+  Handle, // Import Handle
+  Position
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import WorkflowSidebar from './WorkFlowSidebar';
+import { motion } from 'framer-motion'; 
+import WorkflowSidebar from './WorkflowSidebar';
 
-const initialNodes = [
-  { 
-    id: '1', 
-    type: 'input', 
-    data: { label: 'When User Chats' }, 
-    position: { x: 250, y: 50 },
-    style: { background: '#fff', border: '1px solid #3b82f6', borderRadius: '8px', padding: '10px', width: 150 }
-  },
-];
+// --- 1. THE CAT NODE (Custom Component) ---
+// This replaces the default grey box with a cute card + Yarn Handles
+const CatNode = ({ data, selected }) => {
+  return (
+    <div className={`relative bg-white rounded-3xl border-2 transition-all ${selected ? 'border-orange-400 shadow-lg shadow-orange-100' : 'border-stone-100 shadow-sm'} p-4 min-w-[200px]`}>
+       {/* Top "Ear" Decorations */}
+       <div className="absolute -top-3 left-4 w-4 h-4 bg-white border-l-2 border-t-2 border-stone-100 transform rotate-45"></div>
+       <div className="absolute -top-3 right-4 w-4 h-4 bg-white border-r-2 border-t-2 border-stone-100 transform -rotate-45"></div>
+
+      {/* Inputs (Yarn Ball Style) */}
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        className="!w-4 !h-4 !bg-orange-300 !border-2 !border-white !rounded-full shadow-sm" 
+      />
+      
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-orange-50 rounded-full text-2xl">
+           {/* Dynamic Icon based on label */}
+           {data.label.includes('Identity') ? '🦁' : 
+            data.label.includes('Rule') ? '😾' : 
+            data.label.includes('Backstory') ? '📜' : '🐱'}
+        </div>
+        <div>
+           <div className="text-xs font-bold text-stone-400 uppercase tracking-wider">{data.category || 'THOUGHT'}</div>
+           <div className="font-bold text-stone-700">{data.label}</div>
+        </div>
+      </div>
+
+      {/* Content Preview */}
+      {data.content && (
+        <div className="mt-2 text-[10px] text-stone-500 bg-stone-50 p-2 rounded-xl italic truncate">
+          "{data.content}"
+        </div>
+      )}
+
+      {/* Outputs (Yarn Ball Style) */}
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        className="!w-4 !h-4 !bg-orange-400 !border-2 !border-white !rounded-full shadow-sm" 
+      />
+    </div>
+  );
+};
+
+// ... (Rest of your imports and setup)
 
 let id = 0;
-const getId = () => `dndnode_${id++}`;
+const getId = () => `meow_${id++}`;
 
 const AgentWorkflowEditorContent = ({ onSave }) => {
   const reactFlowWrapper = useRef(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  // Tell ReactFlow to use our Custom CatNode
+  const nodeTypes = useMemo(() => ({ 
+      core: CatNode, 
+      context: CatNode, 
+      default: CatNode 
+  }), []);
+
+  const [nodes, setNodes, onNodesChange] = useNodesState([
+    { 
+        id: 'core-1', 
+        type: 'core', 
+        data: { label: 'Agent Identity', category: 'CORE', content: 'You are a helpful assistant.' }, 
+        position: { x: 300, y: 200 } 
+    }
+  ]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
-  
-  // New State: Track which node is selected for editing
   const [selectedNodeId, setSelectedNodeId] = useState(null);
-  const [nodeName, setNodeName] = useState("");
 
-  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
+  const onConnect = useCallback((params) => setEdges((eds) => addEdge({ 
+      ...params, 
+      animated: true, 
+      style: { stroke: '#fb923c', strokeWidth: 3, strokeDasharray: '5,5' } // Dashed "Yarn" Line
+  }, eds)), [setEdges]);
 
-  const onDragOver = useCallback((event) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }, []);
-
-  const onDrop = useCallback(
-    (event) => {
+  // Drag and Drop Logic (Same as before)
+  const onDragOver = useCallback((event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }, []);
+  
+  const onDrop = useCallback((event) => {
       event.preventDefault();
       const type = event.dataTransfer.getData('application/reactflow');
-      const label = event.dataTransfer.getData('application/label');
-      // We grab the color passed from sidebar
-      const colorClass = event.dataTransfer.getData('application/color'); 
-      
-      // Map tailwind classes to hex for inline styles (ReactFlow needs inline for now)
-      // Or just keep it simple:
-      const borderColor = colorClass.includes('blue') ? '#3b82f6' : 
-                          colorClass.includes('purple') ? '#a855f7' : 
-                          colorClass.includes('orange') ? '#f97316' : 
-                          colorClass.includes('green') ? '#22c55e' : '#64748b';
-
-      if (typeof type === 'undefined' || !type) return;
-
-      const position = reactFlowInstance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      
+      if (!type) return;
+      const position = reactFlowInstance.project({ x: event.clientX, y: event.clientY });
       const newNode = {
         id: getId(),
         type,
         position,
-        data: { label: label },
-        style: { 
-            background: '#fff', 
-            border: `2px solid ${borderColor}`, 
-            borderRadius: '10px', 
-            padding: '10px',
-            minWidth: '150px',
-            fontWeight: 600,
-            fontSize: '12px',
-            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+        data: { 
+            label: event.dataTransfer.getData('application/label'), 
+            content: event.dataTransfer.getData('application/content'),
+            category: type === 'core' ? 'CORE' : 'TRAIT'
         },
       };
-
       setNodes((nds) => nds.concat(newNode));
-    },
-    [reactFlowInstance, setNodes],
-  );
+  }, [reactFlowInstance, setNodes]);
 
-  // --- NEW: Handle Node Click ---
-  const onNodeClick = (event, node) => {
-    setSelectedNodeId(node.id);
-    setNodeName(node.data.label); // Pre-fill the input with current name
-  };
-
-  // --- NEW: Update Node Name ---
-  const handleNameChange = (e) => {
-    const newName = e.target.value;
-    setNodeName(newName);
-    
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === selectedNodeId) {
-          // ReactFlow requires creating a new object for data to trigger re-render
-          return { ...node, data: { ...node.data, label: newName } };
-        }
-        return node;
-      })
-    );
-  };
-
-  // Sync to parent
+  // Save Logic
   React.useEffect(() => {
-    if(onSave) onSave({ nodes, edges });
+    if(onSave && nodes.length > 0) {
+        const context = nodes.map(n => n.data.content).join('\n\n');
+        onSave({ visual: { nodes, edges }, compiledPrompt: context });
+    }
   }, [nodes, edges, onSave]);
 
   return (
-    <div className="flex h-[600px] w-full border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900 overflow-hidden shadow-inner relative">
-      
+    <div className="flex h-[600px] w-full border-4 border-white rounded-[2rem] bg-orange-50 overflow-hidden shadow-2xl relative">
       <WorkflowSidebar />
 
-      <div className="flex-1 h-full relative" ref={reactFlowWrapper}>
+      <div className="flex-1 h-full relative cursor-crosshair" ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -124,60 +134,23 @@ const AgentWorkflowEditorContent = ({ onSave }) => {
           onInit={setReactFlowInstance}
           onDrop={onDrop}
           onDragOver={onDragOver}
-          onNodeClick={onNodeClick} // <--- Listen for clicks
-          onPaneClick={() => setSelectedNodeId(null)} // Click empty space to close panel
+          nodeTypes={nodeTypes} // <--- Register Custom Nodes
+          onNodeClick={(e, n) => setSelectedNodeId(n.id)}
+          onPaneClick={() => setSelectedNodeId(null)}
           fitView
         >
-          <Background gap={12} size={1} />
-          <Controls />
-          <MiniMap style={{ height: 100 }} zoomable pannable />
+          <Background color="#fdba74" gap={25} size={3} variant="dots" />
+          <Controls className="!bg-white !border-none !shadow-xl !rounded-2xl !m-4" />
+          
+          {/* --- 2. THE SLEEPING MASCOT (Empty State) --- */}
+          {nodes.length < 2 && (
+             <div className="absolute bottom-10 right-10 pointer-events-none opacity-50 flex flex-col items-center">
+                <span className="text-6xl animate-bounce">💤</span>
+                <span className="text-6xl">🐈</span>
+                <p className="text-orange-400 font-bold mt-2 bg-white/80 px-3 py-1 rounded-full">Drag toys to wake me up!</p>
+             </div>
+          )}
         </ReactFlow>
-
-        {/* --- THE INSPECTOR PANEL --- */}
-        {selectedNodeId && (
-            <div className="absolute top-4 right-4 w-64 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 animate-in slide-in-from-right-2 z-20">
-                <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-bold text-sm">Step Settings</h4>
-                    <button onClick={() => setSelectedNodeId(null)} className="text-slate-400 hover:text-slate-600">
-                        <span className="material-symbols-outlined text-sm">close</span>
-                    </button>
-                </div>
-                
-                <div className="space-y-3">
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1">Step Name</label>
-                        <input 
-                            type="text" 
-                            className="w-full text-sm px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-900 dark:border-slate-700"
-                            value={nodeName}
-                            onChange={handleNameChange}
-                        />
-                    </div>
-                    
-                    {/* Placeholder for future configuration */}
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1">Description (Optional)</label>
-                        <textarea 
-                            rows="2"
-                            className="w-full text-xs px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-900 dark:border-slate-700 resize-none"
-                            placeholder="What should happen here?"
-                        ></textarea>
-                    </div>
-                    
-                    <button 
-                        onClick={() => {
-                            setNodes((nds) => nds.filter((n) => n.id !== selectedNodeId));
-                            setSelectedNodeId(null);
-                        }}
-                        className="w-full py-2 mt-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                    >
-                        Delete Step
-                    </button>
-                </div>
-            </div>
-        )}
-        {/* --------------------------- */}
-        
       </div>
     </div>
   );
