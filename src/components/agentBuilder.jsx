@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AgentBuilderAssistant from './AgentBuilderAssistant';
+import AgentWorkflowEditor from './AgentWorkflowEditor';
 
 const AgentBuilder = () => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('form'); // 'form' or 'assistant'
   
+  const [workflowData, setWorkflowData] = useState(null);
   const [formData, setFormData] = useState({
     AgentName: '',
     Description: '',
@@ -40,7 +42,9 @@ const AgentBuilder = () => {
         // Convert string capabilities back to array for DB if needed, or keep as string
         Capabilities: typeof formData.Capabilities === 'string' 
           ? formData.Capabilities.split(',').map(item => item.trim()).filter(i => i)
-          : formData.Capabilities
+          : formData.Capabilities,
+
+        WorkflowVisual: workflowData
       };
 
       // Use relative path - Proxy handles the rest
@@ -84,6 +88,15 @@ const AgentBuilder = () => {
              >
                Manual
              </button>
+
+            <button 
+              onClick={() => setViewMode('workflow')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1 ${viewMode === 'workflow' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500'}`}
+            >
+              <span className="material-symbols-outlined text-[16px]">account_tree</span>
+              Visual
+            </button>
+
              <button 
                onClick={() => setViewMode('assistant')}
                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1 ${viewMode === 'assistant' ? 'bg-white dark:bg-slate-700 shadow-sm text-purple-600' : 'text-slate-500'}`}
@@ -126,6 +139,17 @@ const AgentBuilder = () => {
                     onUpdateForm={handleAssistantUpdate} 
                     onComplete={() => setViewMode('form')}
                 />
+            </div>
+        
+        ) : viewMode === 'workflow' ? (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm mb-6">
+                  <h2 className="text-lg font-bold mb-2">Agent Workflow</h2>
+                  <p className="text-slate-500 text-sm mb-4">
+                    Drag and drop nodes to define how your agent processes information.
+                  </p>
+                  <AgentWorkflowEditor onSave={(data) => setWorkflowData(data)} />
+              </div>
             </div>
         ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
