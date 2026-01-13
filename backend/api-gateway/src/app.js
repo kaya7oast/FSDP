@@ -24,6 +24,7 @@ console.log("API Gateway targets:", {
   AGENT_SERVICE: process.env.AGENT_SERVICE,
   CONVERSATION_SERVICE: process.env.CONVERSATION_SERVICE,
   AI_SERVICE: process.env.AI_SERVICE_URL,
+  USER_SERVICE: process.env.USER_SERVICE
 });
 
 app.listen(process.env.PORT, () =>

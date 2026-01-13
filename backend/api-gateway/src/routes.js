@@ -18,7 +18,7 @@ export default function routes(app) {
       changeOrigin: true
     })
   );
-  
+
   app.use(
     "/ai",
     createProxyMiddleware({
@@ -29,4 +29,13 @@ export default function routes(app) {
       },
     })
   );
+  app.use(
+    "/users",
+    createProxyMiddleware({
+      target: "http://user-service:4003",
+      changeOrigin: true
+    })
+  );
 }
+
+
