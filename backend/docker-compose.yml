@@ -54,6 +54,20 @@ services:
     networks:
       - backend
 
+
+  
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    environment:
+      PORT: 4003
+      MONGO_URI: ${USER_DB}  # MongoDB Compass URI from .env
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "4003:4003"
+    networks:
+      - backend
+
 networks:
   backend:
     driver: bridge

@@ -2,6 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
+import protect from "./middlewares/authMiddleware.js";
+
 
 import {
   chatWithAgent,
@@ -12,6 +14,7 @@ import {
   allConversations,
 } from "./controllers/conversationController.js";
 import { all } from "axios";
+
 
 dotenv.config();
 const app = express();
@@ -24,12 +27,12 @@ mongoose.connect(process.env.MONGO_URI, { dbName: "conversationDB" })
   .catch(err => console.error("Conversation DB connection error:", err));
 
 // Routes
-app.post("/conversations/:agentId/chat", chatWithAgent);
-app.get("/conversations/:conversationId", getConversation);
-app.get("/conversations/user/:userId", getAllConversations);
-app.post("/conversations/:conversationId/delete", deleteConversation);
-app.post("/conversations/:conversationId/summarize", summarizeConversation);
-app.get("/conversations", allConversations);
+app.post("/conversations/:agentId/chat", protect, chatWithAgent);
+app.get("/conversations/:conversationId", protect, getConversation);
+app.get("/conversations/user/:userId", protect, getAllConversations);
+app.post("/conversations/:conversationId/delete", protect, deleteConversation);
+app.post("/conversations/:conversationId/summarize", protect, summarizeConversation);
+app.get("/conversations", protect, allConversations);
 
 
 app.listen(process.env.PORT, () =>

@@ -11,25 +11,32 @@
       })
     );
 
-    // 2. Conversation Service
-    app.use(
-      "/conversations",
-      createProxyMiddleware({
-        target: process.env.CONVERSATION_SERVICE || "http://conversation-service:4002",
-        changeOrigin: true
-      })
-    );
+  // Conversation Service Routes
+  app.use(
+    "/conversations",
+    createProxyMiddleware({
+      target: "http://conversation-service:4002",
+      changeOrigin: true
+    })
+  );
 
-    // 3. AI Service (The "Brain" for Voice Assistant)
-    app.use(
-      "/api/ai/system", 
-      createProxyMiddleware({
-        // Note: docker-compose says ai-service is on Port 4000
-        target: process.env.AI_SERVICE_URL || "http://ai-service:4000",
-        changeOrigin: true,
-        pathRewrite: {
-          '^/api/ai/system': '/generate', // Rewrites the path for the AI service
-        },
-      })
-    );
-  }
+  app.use(
+    "/ai",
+    createProxyMiddleware({
+      target: "http://ai-service:4000",
+      changeOrigin: true,
+      pathRewrite: {
+        '^/ai': '', // Removes '/ai' so the service sees '/generate'
+      },
+    })
+  );
+  app.use(
+    "/users",
+    createProxyMiddleware({
+      target: "http://user-service:4003",
+      changeOrigin: true
+    })
+  );
+}
+
+
