@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 const messageSchema = new mongoose.Schema({
   role: { type: String, enum: ["system", "user", "assistant"], required: true },
   content: { type: String, required: true },
+  agentId: { type: String, default: null},
+  visibility: { type: String, enum: ["user", "internal"], default: "user"},
   createdAt: { type: Date, default: Date.now },
 });
 
