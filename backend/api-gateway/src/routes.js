@@ -1,14 +1,15 @@
-import { createProxyMiddleware } from "http-proxy-middleware";
+  import { createProxyMiddleware } from "http-proxy-middleware";
 
-export default function routes(app) {
-  // Agent Service Routes
-  app.use(
-    "/agents",
-    createProxyMiddleware({
-      target: "http://agent-service:4001",
-      changeOrigin: true
-    })
-  );
+  export default function routes(app) {
+    // 1. Agent Service
+    app.use(
+      "/agents",
+      createProxyMiddleware({
+        // Use env variable OR fallback to the docker service name
+        target: process.env.AGENT_SERVICE || "http://agent-service:4001",
+        changeOrigin: true
+      })
+    );
 
   // Conversation Service Routes
   app.use(
