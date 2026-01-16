@@ -3,50 +3,35 @@ import { useNavigate } from 'react-router-dom';
 import { X, Mic, Activity, Trash2, Moon, Zap } from 'lucide-react';
 
 const VoiceAssistant = () => {
-  // --- STATE ---
-  const [mode, setMode] = useState("offline"); // offline | sentry | listening | processing | speaking
+  const [mode, setMode] = useState("offline");
   const [transcript, setTranscript] = useState("");
   const [assistantReply, setAssistantReply] = useState("");
   const [isMicAlive, setIsMicAlive] = useState(false); 
-
   const navigate = useNavigate();
   
-  // --- REFS (The "Brain" that survives reloads) ---
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
   const adaVoiceRef = useRef(null);
   
-  // Logic Flags
+  // Logic Refs
   const isSystemActive = useRef(localStorage.getItem('ada_active') === 'true');
-  const isProcessingWakeWord = useRef(false); // Prevents "Double Yes"
+  const isProcessingWakeWord = useRef(false);
   const watchdogTimer = useRef(null);
 
-  // --- 1. INITIAL SETUP ---
   useEffect(() => {
-    // Load Voice
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
-      adaVoiceRef.current = voices.find(v => 
-        v.name.includes("Google US English") || 
-        v.name.includes("Zira") || 
-        v.name.includes("Samantha")
-      ) || voices[0];
+      adaVoiceRef.current = voices.find(v => v.name.includes("Google US English") || v.name.includes("Zira") || v.name.includes("Samantha")) || voices[0];
     };
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
-    // Auto-Start if active
-    if (isSystemActive.current) {
-        startSentryMode();
-    }
+    // Auto-wake on reload
+    if (isSystemActive.current) startSentryMode();
 
-    // CLEANUP: The most important part!
-    return () => {
-      fullStop();
-    };
+    return () => fullStop();
   }, []);
 
-  // --- 2. CONTROLS ---
   const toggleSystem = () => {
     if (mode === "offline") {
       isSystemActive.current = true;
@@ -61,120 +46,86 @@ const VoiceAssistant = () => {
   };
 
   const fullStop = () => {
-    // Kill Mic
     if (recognitionRef.current) {
-      recognitionRef.current.onend = null; // Prevent triggers
+      recognitionRef.current.onend = null;
       recognitionRef.current.onresult = null;
       recognitionRef.current.abort();
       recognitionRef.current = null;
     }
-    // Kill Speech
     synthRef.current.cancel();
-    // Kill Timers
     if (watchdogTimer.current) clearTimeout(watchdogTimer.current);
     setIsMicAlive(false);
   };
 
-  // --- 3. SENTRY MODE (Listening for "Ada") ---
   const startSentryMode = () => {
     if (!isSystemActive.current) return;
-    
-    // 1. Clean slate
     fullStop(); 
     isProcessingWakeWord.current = false;
     setMode("sentry");
     setTranscript("");
 
-    // 2. Setup Mic
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) return;
-
     const recognition = new Recognition();
-    recognition.continuous = true; // Sentry needs continuous
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
     recognition.onstart = () => setIsMicAlive(true);
-    
-    // Auto-restart if it dies silently (Common Chrome behavior)
     recognition.onend = () => {
       setIsMicAlive(false);
-      if (isSystemActive.current && mode === "sentry") {
-        setTimeout(() => startSentryMode(), 500);
-      }
+      // Auto-restart if silence
+      if (isSystemActive.current && mode === "sentry") setTimeout(() => startSentryMode(), 500);
     };
 
     recognition.onresult = (event) => {
-      // LOCK: If we are already waking up, ignore everything else
       if (isProcessingWakeWord.current) return;
-
       const results = Array.from(event.results);
       const text = results[results.length - 1][0].transcript.toLowerCase();
-      
-      if (text.includes("ada") || text.includes("hey data") || text.includes("beta")) {
-        isProcessingWakeWord.current = true; // Engage Lock
-        recognition.stop(); // Stop listening immediately
+      if (text.includes("ada") || text.includes("hey data")) {
+        isProcessingWakeWord.current = true; 
+        recognition.stop(); 
         speak("Yes?", () => startCommandMode());
       }
     };
-
     recognitionRef.current = recognition;
     try { recognition.start(); } catch(e) {}
   };
 
-  // --- 4. COMMAND MODE (Listening for Orders) ---
   const startCommandMode = () => {
     if (!isSystemActive.current) return;
-    fullStop(); // Kill previous mic
-
+    fullStop(); 
     setMode("listening");
     setTranscript("");
 
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new Recognition();
-    recognition.continuous = false; // Command needs single-shot
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
     recognition.onstart = () => setIsMicAlive(true);
-    
     recognition.onend = () => {
       setIsMicAlive(false);
-      // If we stopped listening but didn't process anything, go back to sleep
-      if (isSystemActive.current && mode === "listening" && !transcript) {
-         startSentryMode();
-      }
+      if (isSystemActive.current && mode === "listening" && !transcript) startSentryMode();
     };
 
     recognition.onresult = (event) => {
       const text = event.results[event.results.length - 1][0].transcript;
       setTranscript(text);
-      if (event.results[event.results.length - 1].isFinal) {
-        handleSmartCommand(text);
-      }
+      if (event.results[event.results.length - 1].isFinal) handleSmartCommand(text);
     };
-
     recognitionRef.current = recognition;
     try { recognition.start(); } catch(e) {}
   };
 
-  // --- 5. INTELLIGENCE ---
   const handleSmartCommand = async (command) => {
     if (!command.trim()) { startSentryMode(); return; }
-
-    fullStop(); // Stop listening while thinking
+    fullStop();
     setMode("processing");
 
     try {
-      console.log("🎤 Processing:", command);
-
-      const systemPrompt = `
-        You are Ada. USER SAID: "${command}"
-        RETURN JSON ONLY.
-        MANDATORY FIELDS: "action", "reply".
-        ACTIONS: "theme", "navigate", "delete", "chat".
-        Example: { "action": "navigate", "route": "/dashboard", "reply": "On it." }
-      `;
+      const systemPrompt = `You are Ada. USER SAID: "${command}" RETURN JSON ONLY. MANDATORY FIELDS: "action", "reply". ACTIONS: "theme", "navigate", "delete", "chat". Example: { "action": "navigate", "route": "/dashboard", "reply": "On it." }`;
 
       const res = await fetch('/api/ai/system', { 
         method: 'POST',
@@ -184,11 +135,10 @@ const VoiceAssistant = () => {
 
       const data = await res.json();
       
-      // Universal Extraction
+      // Universal Extraction (Fixes "Executing" silence)
       let rawText = data.response || data.reply || data.text || "{}";
       if (typeof rawText === 'object') rawText = JSON.stringify(rawText);
-
-      // Cleanup
+      
       let cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "");
       const first = cleanJson.indexOf('{');
       const last = cleanJson.lastIndexOf('}');
@@ -197,18 +147,16 @@ const VoiceAssistant = () => {
       let result = {};
       try { result = JSON.parse(cleanJson); } catch (e) { result = { reply: "I'm confused." }; }
 
-      // Logic Mapping
+      // Synonym Mapping
       let action = (result.action || "chat").toLowerCase();
       if (action === "navigation") action = "navigate";
       
       const target = result.target || result.agent || result.name || result.item; 
       let route = result.route || result.destination || result.path;
       if (route && !route.startsWith('/')) route = '/' + route;
-
       const reply = result.reply || "Done.";
       setAssistantReply(reply);
 
-      // Execution
       if (action === "theme") {
         const root = document.documentElement;
         if (result.theme === "dark" || command.toLowerCase().includes("dark")) {
@@ -220,20 +168,15 @@ const VoiceAssistant = () => {
         }
         window.dispatchEvent(new Event("storage"));
         speak(reply, () => setTimeout(startSentryMode, 500));
-      }
-      else if (action === "navigate" && route) {
+      } else if (action === "navigate" && route) {
         navigate(route);
         speak(reply, () => setTimeout(startSentryMode, 500));
-      }
-      else if (action === "delete" && target) {
+      } else if (action === "delete" && target) {
         await performVoiceDelete(target);
-      }
-      else {
+      } else {
         speak(reply, () => setTimeout(startSentryMode, 500));
       }
-
     } catch (err) {
-      console.error(err);
       speak("System error.", () => startSentryMode());
     }
   };
@@ -259,9 +202,7 @@ const VoiceAssistant = () => {
      }
   };
 
-  // --- 6. SPEECH SYNTHESIS (Stabilized) ---
   const speak = (text, onComplete) => {
-    // Kill any existing timer or speech
     if (watchdogTimer.current) clearTimeout(watchdogTimer.current);
     synthRef.current.cancel();
 
@@ -270,32 +211,24 @@ const VoiceAssistant = () => {
     if (adaVoiceRef.current) utterance.voice = adaVoiceRef.current;
     utterance.rate = 1.1;
 
-    // The Safety Net: Force completion after X seconds
-    const safetyTime = (text.length * 100) + 1000; // 100ms per character + 1s buffer
+    const safetyTime = (text.length * 100) + 1000;
     
-    // Define the "Finish Line"
     const handleComplete = () => {
       if (watchdogTimer.current) clearTimeout(watchdogTimer.current);
       if (onComplete) onComplete();
     };
 
     utterance.onend = handleComplete;
-    
-    // If browser doesn't fire onend, we force it
     watchdogTimer.current = setTimeout(() => {
-        console.warn("⚠️ Watchdog: Forcing speech end.");
         handleComplete();
     }, safetyTime);
 
     synthRef.current.speak(utterance);
   };
 
-  // --- RENDER ---
   if (mode === "offline") {
     return (
-      <button onClick={toggleSystem} className="fixed bottom-6 right-6 z-50 bg-indigo-600 text-white p-4 rounded-full shadow-xl hover:scale-110 transition-transform">
-        <Mic size={24} />
-      </button>
+      <button onClick={toggleSystem} className="fixed bottom-6 right-6 z-50 bg-indigo-600 text-white p-4 rounded-full shadow-xl hover:scale-110 transition-transform"><Mic size={24} /></button>
     );
   }
 
@@ -310,7 +243,6 @@ const VoiceAssistant = () => {
            {mode === 'sentry' ? <Mic size={24} className="text-white" /> : <Activity size={24} className="text-white animate-bounce"/>}
         </button>
       </div>
-      
       {(mode === "listening" || mode === "processing" || mode === "speaking") && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-700 animate-in zoom-in-95">
