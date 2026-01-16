@@ -1,214 +1,298 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Mic, X, MessageSquare, Activity, LayoutDashboard, Bot, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Power, Zap, Mic, Activity, RefreshCw } from 'lucide-react';
 
 const VoiceAssistant = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+  // --- UI STATE ---
+  // "offline", "sentry", "listening", "processing", "speaking"
+  const [mode, setMode] = useState("offline"); 
   const [transcript, setTranscript] = useState("");
-  const [assistantReply, setAssistantReply] = useState("How can I help you?");
+  const [assistantReply, setAssistantReply] = useState("");
+  const [isMicAlive, setIsMicAlive] = useState(false); 
+
   const navigate = useNavigate();
-  const location = useLocation();
-  
-  // Refs for speech recognition
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
+  const adaVoiceRef = useRef(null);
+  
+  // --- LOGIC REFS (The Fix for Stale Closures) ---
+  const isSystemActive = useRef(false);   // Is the big "Enable" button on?
+  const modeRef = useRef("offline");      // FRESH copy of 'mode' for the timer
+  const heartbeatTimer = useRef(null);
 
+  // --- 1. SETUP ---
   useEffect(() => {
-    // Initialize Web Speech API
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      adaVoiceRef.current = voices.find(v => 
+        v.name.includes("Google US English") || 
+        v.name.includes("Zira") || 
+        v.name.includes("Samantha")
+      ) || voices[0];
+    };
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
 
-      recognitionRef.current.onstart = () => setIsListening(true);
-      
-      recognitionRef.current.onresult = (event) => {
-        const currentTranscript = Array.from(event.results)
-          .map(result => result[0].transcript)
-          .join('');
-        setTranscript(currentTranscript);
-      };
+    // Start the Watchdog Timer (Runs every 1 second)
+    heartbeatTimer.current = setInterval(checkPulse, 1000);
 
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-        // Process the final command when silence is detected
-        // We use a timeout to let the state update with the full transcript
-        setTimeout(() => handleCommand(), 100);
-      };
-
-      recognitionRef.current.onerror = (event) => {
-        console.error("Speech recognition error", event.error);
-        setIsListening(false);
-        setAssistantReply("Sorry, I didn't catch that.");
-      };
-    } else {
-      setAssistantReply("Voice features are not supported in this browser.");
-    }
+    return () => {
+      clearInterval(heartbeatTimer.current);
+      safeStop();
+    };
   }, []);
 
-  // Ensure we use the latest transcript for processing
-  const transcriptRef = useRef(transcript);
-  useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
+  // Sync state to ref so the timer can see it
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
-  const speak = (text) => {
+  // --- 2. THE WATCHDOG (Phoenix Protocol) ---
+  const checkPulse = () => {
+    // Only act if the system is supposed to be ON
+    if (!isSystemActive.current) return;
+
+    // If we are in "Sentry" mode (waiting for wake word)
+    // AND the mic is supposedly dead...
+    if (modeRef.current === "sentry" && !recognitionRef.current) {
+        console.log("❤ Heartbeat: Reviving Sentry...");
+        startSentryMode();
+    }
+    
+    // Check if the browser silently killed the process
+    // (If we have a ref, but isMicAlive is false for > 2 seconds, kill and restart)
+    // For now, we rely on the 'onend' clearing the ref.
+  };
+
+  // --- 3. CONTROLS ---
+  const toggleSystem = () => {
+    if (mode === "offline") {
+      isSystemActive.current = true;
+      speak("System online.", () => startSentryMode());
+    } else {
+      isSystemActive.current = false;
+      safeStop();
+    }
+  };
+
+  const safeStop = () => {
+    setMode("offline");
+    setIsMicAlive(false);
+    if (recognitionRef.current) {
+      recognitionRef.current.onend = null; // Prevent zombie callbacks
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+    }
+    synthRef.current.cancel();
+  };
+
+  // --- 4. SENTRY MODE ---
+  const startSentryMode = () => {
+    if (!isSystemActive.current) return;
+    
+    // 1. Clean up any old ghosts
+    if (recognitionRef.current) recognitionRef.current.abort();
+
+    // 2. Set State
+    setMode("sentry");
+    setTranscript("");
+
+    // 3. Build FRESH Instance
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false; // We manually restart
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsMicAlive(true);
+    
+    recognition.onend = () => {
+      setIsMicAlive(false);
+      recognitionRef.current = null; // Mark as dead so Heartbeat knows to revive it
+    };
+
+    recognition.onresult = (event) => {
+      const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
+      if (text.includes("ada") || text.includes("aether")) {
+        recognition.onend = null; // Don't let the heartbeat restart it yet
+        recognition.stop();
+        speak("Yes?", () => startCommandMode());
+      }
+    };
+
+    recognitionRef.current = recognition;
+    try { recognition.start(); } catch(e) { console.warn("Start error:", e); }
+  };
+
+  // --- 5. COMMAND MODE ---
+  const startCommandMode = () => {
+    if (!isSystemActive.current) return;
+    setMode("listening");
+    setTranscript("");
+
+    if (recognitionRef.current) recognitionRef.current.abort();
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsMicAlive(true);
+    
+    recognition.onend = () => {
+      setIsMicAlive(false);
+      recognitionRef.current = null;
+      // If silenced out, go back to sentry immediately
+      if (isSystemActive.current && modeRef.current === "listening" && !transcript) {
+         startSentryMode();
+      }
+    };
+
+    recognition.onresult = (event) => {
+      const text = event.results[event.results.length - 1][0].transcript;
+      setTranscript(text);
+      if (event.results[event.results.length - 1].isFinal) {
+        handleSmartCommand(text);
+      }
+    };
+
+    recognitionRef.current = recognition;
+    try { recognition.start(); } catch(e) {}
+  };
+
+  // --- 6. AI LOGIC ---
+  const handleSmartCommand = async (command) => {
+    if (!command.trim()) {
+      startSentryMode();
+      return;
+    }
+
+    setMode("processing");
+    // Kill mic so it doesn't hear itself
+    if (recognitionRef.current) {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+    }
+
+    try {
+      const systemPrompt = `
+        You are Ada.
+        VALID ROUTES: /dashboard, /builder, /conversations, /analytics.
+        USER SAID: "${command}"
+        RETURN JSON: { "action": "navigate" | "chat", "route": "/...", "reply": "short answer" }
+      `;
+
+      const res = await fetch('/api/ai/system', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'openai', message: systemPrompt })
+      });
+
+      const data = await res.json();
+      
+      let rawJson = data.response?.candidates?.[0]?.content?.parts?.[0]?.text || 
+                    data.response?.choices?.[0]?.message?.content || 
+                    data.response || "{}";
+      
+      if (typeof rawJson !== 'string') rawJson = JSON.stringify(rawJson);
+      rawJson = rawJson.replace(/```json/g, "").replace(/```/g, "").trim();
+
+      let result = {};
+      try { result = JSON.parse(rawJson); } catch (e) { result = { reply: rawJson }; }
+
+      const finalReply = result.reply || result.message || "Done.";
+      setAssistantReply(finalReply);
+
+      speak(finalReply, () => {
+        if (result.action === "navigate" && result.route) {
+          navigate(result.route);
+        }
+        setTimeout(() => startSentryMode(), 500);
+      });
+
+    } catch (err) {
+      console.error(err);
+      speak("Error connecting.", () => startSentryMode());
+    }
+  };
+
+  const speak = (text, onComplete) => {
+    setMode("speaking");
     if (synthRef.current.speaking) synthRef.current.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1.1;
+    if (adaVoiceRef.current) utterance.voice = adaVoiceRef.current;
+    utterance.rate = 1.1;
+    utterance.onend = () => { if (onComplete) onComplete(); };
     synthRef.current.speak(utterance);
-    setAssistantReply(text);
   };
 
-  const handleCommand = () => {
-    const command = transcriptRef.current.toLowerCase();
-    if (!command.trim()) return;
-
-    // --- NAVIGATION LOGIC ---
-    
-    // 1. Agent Builder
-    if (command.includes('build') || command.includes('create') || command.includes('make') || command.includes('new agent')) {
-      speak("Sure! Taking you to the Agent Builder.");
-      navigate('/builder');
-      closeAfterDelay();
-    } 
-    // 2. Dashboard
-    else if (command.includes('dashboard') || command.includes('home') || command.includes('overview')) {
-      speak("Going to your Dashboard!");
-      navigate('/dashboard');
-      closeAfterDelay();
-    }
-    // 3. Conversations
-    else if (command.includes('chat') || command.includes('talk') || command.includes('conversation') || command.includes('messages')) {
-      speak("Opening your conversations!");
-      navigate('/conversations');
-      closeAfterDelay();
-    }
-    // 4. Analytics
-    else if (command.includes('analytics') || command.includes('stats') || command.includes('performance')) {
-      speak("Checking the analytics!");
-      navigate('/analytics');
-      closeAfterDelay();
-    }
-    // Fallback
-    else {
-      speak("I'm not sure how to do that yet, but I can help you navigate the app.");
-    }
-  };
-
-  const closeAfterDelay = () => {
-    setTimeout(() => {
-      setIsOpen(false);
-      setTranscript("");
-    }, 2500);
-  };
-
-  const toggleListening = () => {
-    if (isListening) {
-      recognitionRef.current.stop();
-    } else {
-      setTranscript("");
-      setAssistantReply("Listening...");
-      recognitionRef.current.start();
-    }
-  };
-
-  // Render nothing if closed, just the floating button
-  if (!isOpen) {
+  // --- RENDER ---
+  if (mode === "offline") {
     return (
       <button 
-        onClick={() => { setIsOpen(true); speak("Hello! Where would you like to go?"); }}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-lg hover:shadow-blue-500/50 hover:scale-105 transition-all flex items-center justify-center z-50 group"
+        onClick={toggleSystem}
+        className="fixed bottom-6 right-6 z-50 bg-red-600 text-white px-5 py-3 rounded-full shadow-xl flex items-center gap-2 hover:scale-105 transition-transform animate-bounce font-bold"
       >
-        <Sparkles className="w-6 h-6 animate-pulse" />
-        <span className="absolute -top-10 scale-0 group-hover:scale-100 transition-transform bg-slate-800 text-white text-xs px-2 py-1 rounded shadow-sm">
-          AI Assistant
-        </span>
+        <Power size={20} />
+        <span>Enable Ada</span>
       </button>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      {/* Assistant Card */}
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <>
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 group">
         
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white text-center relative">
-          <button 
-            onClick={() => { setIsOpen(false); recognitionRef.current?.stop(); }}
-            className="absolute top-4 right-4 text-white/80 hover:text-white"
-          >
-            <X size={20} />
-          </button>
-          
-          <div className="mb-2 inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 backdrop-blur-md shadow-inner">
-             <Bot size={32} className="text-white" />
-          </div>
-          <h3 className="text-xl font-bold">How can I help?</h3>
-          <p className="text-blue-100 text-sm mt-1">Try "Take me to the builder"</p>
+        {/* Status Badge */}
+        <div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded transition-opacity whitespace-nowrap flex items-center gap-2">
+           <div className={`w-2 h-2 rounded-full ${isMicAlive ? 'bg-green-500 animate-pulse' : 'bg-orange-500 animate-bounce'}`}></div>
+           <span>{isMicAlive ? "Listening" : "Restarting..."}</span>
         </div>
 
-        {/* Content */}
-        <div className="p-8 text-center space-y-6">
-          
-          {/* Transcript Display */}
-          <div className="min-h-[3rem] flex items-center justify-center">
-            {transcript ? (
-              <p className="text-xl text-slate-800 dark:text-slate-100 font-medium leading-relaxed">
-                "{transcript}"
-              </p>
-            ) : (
-              <p className="text-slate-500 italic">{assistantReply}</p>
-            )}
-          </div>
-
-          {/* Visualizer / Button */}
-          <div className="flex justify-center">
-             <button
-                onClick={toggleListening}
-                className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  isListening 
-                    ? "bg-red-500 shadow-red-500/50 shadow-lg scale-110" 
-                    : "bg-blue-600 shadow-blue-500/50 shadow-lg hover:bg-blue-700"
-                }`}
-             >
-                <Mic size={32} className="text-white z-10" />
-                
-                {/* Ping Animation when listening */}
-                {isListening && (
-                  <>
-                    <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping"></span>
-                    <span className="absolute inline-flex h-3/4 w-3/4 rounded-full bg-red-400 opacity-75 animate-ping [animation-delay:0.2s]"></span>
-                  </>
-                )}
-             </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 text-left">
-             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 col-span-2">Suggested Commands</div>
-             <SuggestionPill icon={<LayoutDashboard size={14}/>} text="Go to Dashboard" onClick={() => { setTranscript("Go to Dashboard"); handleCommand(); }} />
-             <SuggestionPill icon={<Activity size={14}/>} text="Show Analytics" onClick={() => { setTranscript("Show Analytics"); handleCommand(); }} />
-             <SuggestionPill icon={<Bot size={14}/>} text="Create Agent" onClick={() => { setTranscript("Create New Agent"); handleCommand(); }} />
-             <SuggestionPill icon={<MessageSquare size={14}/>} text="Chat with Agent" onClick={() => { setTranscript("Open Conversations"); handleCommand(); }} />
-          </div>
-
-        </div>
+        <button 
+          onClick={toggleSystem}
+          className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all border-2 ${
+            mode === 'sentry' ? "bg-indigo-600 border-indigo-400" : 
+            "bg-green-500 border-green-400 animate-pulse"
+          }`}
+        >
+           {mode === 'sentry' ? <Mic size={24} className="text-white" /> : 
+            mode === 'speaking' ? <Activity size={24} className="text-white animate-bounce"/> :
+            mode === 'offline' ? <Power size={24} /> :
+            <Zap size={24} className="text-white fill-current" />}
+        </button>
       </div>
-    </div>
+
+      {(mode === "listening" || mode === "processing" || mode === "speaking") && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-700 animate-in zoom-in-95 duration-200">
+            <div className={`p-4 text-white text-center relative ${
+               mode === 'processing' ? 'bg-purple-600' : 'bg-indigo-600'
+            }`}>
+               <button onClick={() => startSentryMode()} className="absolute top-3 right-3 opacity-70 hover:opacity-100"><X size={18} /></button>
+               <h3 className="font-bold tracking-wide text-lg">
+                 {mode === 'processing' ? "Thinking..." : "Ada Active"}
+               </h3>
+            </div>
+            <div className="p-8 text-center min-h-[150px] flex flex-col items-center justify-center">
+              <p className="text-xl text-slate-800 dark:text-slate-100 font-medium leading-relaxed mb-4">
+                "{transcript || assistantReply || "..."}"
+              </p>
+              {mode === 'listening' && (
+                <div className="flex gap-1 h-4 items-end">
+                   <div className="w-1 bg-red-500 h-full animate-bounce [animation-delay:-0.3s]"></div>
+                   <div className="w-1 bg-red-500 h-2/3 animate-bounce [animation-delay:-0.15s]"></div>
+                   <div className="w-1 bg-red-500 h-full animate-bounce"></div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
-
-const SuggestionPill = ({ icon, text, onClick }) => (
-  <button 
-    onClick={onClick}
-    className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-sm text-slate-600 dark:text-slate-300"
-  >
-    {icon}
-    <span>{text}</span>
-  </button>
-);
 
 export default VoiceAssistant;

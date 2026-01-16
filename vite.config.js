@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: {
       // Proxy agent requests
       '/agents': {
-        target: 'http://127.0.0.1:3000', // Use 127.0.0.1 to avoid localhost IPv6 issues
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         secure: false,
       },
@@ -18,8 +18,8 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      // NEW: Proxy AI requests
-      '/ai': {
+      // FIX: Match the "/api" prefix used by the voice assistant
+      '/api': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         secure: false,
