@@ -1,7 +1,21 @@
 @import "tailwindcss";
 
+/* --- 🔑 THE FIX FOR TAILWIND V4 --- */
+/* This re-wires the 'dark:' utility to look for the class ".dark" */
+/* instead of your computer's system settings. */
+@variant dark (&:where(.dark, .dark *));
+
+/* --- SYSTEM OVERRIDE --- */
+/* This ensures the browser scrollbars match your toggle */
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
 @theme {
-  /* Refined Color Palette */
+  /* Your Original Palette */
   --color-primary: #3b82f6;
   --color-primary-dark: #2563eb;
   --color-secondary: #64748b;
@@ -36,12 +50,17 @@
 /* Base Layer */
 @layer base {
   body {
-    @apply bg-background-light text-text-primary antialiased;
+    /* Set default base styles using your variables */
+    background-color: var(--color-background-light);
+    color: var(--color-text-primary);
     font-family: 'Inter', sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
   
+  /* When .dark class is present, update the variables */
   .dark body {
-    @apply bg-background-dark text-text-dark-primary;
+    background-color: var(--color-background-dark);
+    color: var(--color-text-dark-primary);
   }
 }
 

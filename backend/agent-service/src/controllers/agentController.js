@@ -42,6 +42,15 @@ export const getAllAgents = async (req, res) => {
     // If filter is {}, it returns all. If it's { "Owner.UserID": "1" }, it personalizes.
     const agents = await Agent.find(filter);
 
+
+export const getAllAgents = async (req, res) => {
+  try {
+    // OLD: const agents = await Agent.find(); 
+    
+    // NEW: Find everything where Status is NOT "deleted"
+    // $ne means "Not Equal"
+    const agents = await Agent.find({ Status: { $ne: "deleted" } });
+    
     res.json(agents);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -76,11 +85,11 @@ export const updateAgent = async (req, res) => {
 // DELETE agent
 export const deleteAgent = async (req, res) => {
   try {
-    const agent = await Agent.findOneAndUpdate(
-      { AgentID: String(req.params.agentId) },
-      { Status: "deleted" },
-      { new: true }
-    );
+    const agent = await Agent.findByIdAndUpdate(
+  req.params.agentId,              // <--- Uses standard ID lookup
+  { Status: "deleted" },
+  { new: true }
+  );
     res.json(agent);
   } catch (err) {
     res.status(500).json({ error: err.message });
