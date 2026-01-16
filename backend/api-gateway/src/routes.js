@@ -30,6 +30,16 @@
       },
     })
   );
+
+  app.use(
+  "/api/ai/system",
+  createProxyMiddleware({
+    target: process.env.AI_SERVICE_URL || "http://ai-service:4000",
+    changeOrigin: true,
+    pathRewrite: { '^/api/ai/system': '/generate' },
+  })
+);
+
   app.use(
     "/users",
     createProxyMiddleware({
