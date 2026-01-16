@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
   userId: {
-    type: String,
+    type: String, // Keeping as String to match your existing logic
     required: true,
     unique: true
   },
@@ -17,10 +17,10 @@ const userSchema = new mongoose.Schema({
     unique: true,
     sparse: true
   },
- 
+  
   password: {
     type: String,
-    
+    select: false // Password won't be sent in GET requests automatically
   },
 
   role: {
