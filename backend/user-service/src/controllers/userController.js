@@ -48,13 +48,8 @@ export const registerUser = async (req, res) => {
 // LOGIN: Supports login via Username OR Email
 export const loginUser = async (req, res) => {
   try {
-    const { identifier, password } = req.body; // 'identifier' can be email or username
+    const { identifier, password } = req.body;
 
-    if (!identifier || !password) {
-      return res.status(400).json({ message: "Login details are required" });
-    }
-
-    // Find user where username OR email matches the identifier
     const user = await User.findOne({
       $or: [{ username: identifier }, { email: identifier }]
     }).select("+password");
@@ -65,12 +60,16 @@ export const loginUser = async (req, res) => {
 
     const token = jwt.sign({ userId: user.userId }, process.env.JWT_SECRET, { expiresIn: "1d" });
 
-    res.json({ message: "Login successful", userId: user.userId, token });
+    // Include username in the response for personalization
+    res.json({ 
+      message: "Login successful", 
+      userId: user.userId, 
+      username: user.username, // Added this line
+      token 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-  
-  
 };
 // ... existing registerUser and loginUser code ...
 

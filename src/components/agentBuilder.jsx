@@ -39,7 +39,13 @@ const AgentBuilder = () => {
     try {
       const agentData = {
         ...formData,
-        // Convert string capabilities back to array for DB if needed, or keep as string
+        // 1. LINK IDENTITY: Add the Owner object required by your agentModel.js
+        Owner: {
+          UserID: localStorage.getItem('userId'),
+          UserName: localStorage.getItem('username')
+        },
+        
+        // 2. FORMAT DATA: Convert string capabilities to an array
         Capabilities: typeof formData.Capabilities === 'string' 
           ? formData.Capabilities.split(',').map(item => item.trim()).filter(i => i)
           : formData.Capabilities,
@@ -59,7 +65,8 @@ const AgentBuilder = () => {
         navigate('/dashboard');
       } else {
         const err = await response.json();
-        alert('Error: ' + (err.error || 'Failed to save'));
+        // This will now show you specific Mongoose validation errors if they occur
+        alert('Error: ' + (err.error || err.message || 'Failed to save'));
       }
     } catch (error) {
       console.error(error);

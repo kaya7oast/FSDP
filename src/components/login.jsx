@@ -41,6 +41,7 @@ const Login = () => {
       // Identity storage for the "Welcome back" message
       localStorage.setItem('token', data.token);
       localStorage.setItem('userId', data.userId);
+      localStorage.setItem('username', data.username);
       navigate('/dashboard');
     } else {
       // This triggers if Username/Email is wrong OR Password is wrong
