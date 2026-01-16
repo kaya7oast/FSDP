@@ -29,14 +29,19 @@ export const getAgentbyId = async (req, res) => {
 };
 
 
-
-
-
-
-// GET all agents
 export const getAllAgents = async (req, res) => {
   try {
-    const agents = await Agent.find();
+    // 1. Grab the userId from the URL query parameters
+    const { userId } = req.query;
+
+    // 2. Build the filter. 
+    // IMPORTANT: Use "Owner.UserID" (quoted) to query the nested object
+    const filter = userId ? { "Owner.UserID": userId } : {};
+
+    // 3. Apply the filter to the Mongoose query
+    // If filter is {}, it returns all. If it's { "Owner.UserID": "1" }, it personalizes.
+    const agents = await Agent.find(filter);
+
     res.json(agents);
   } catch (err) {
     res.status(500).json({ error: err.message });
