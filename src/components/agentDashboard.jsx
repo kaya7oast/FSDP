@@ -11,10 +11,7 @@ function AgentDashboard() {
   
   // 1. Theme State (With LocalStorage memory)
   const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("theme") === "dark";
-    }
-    return false;
+  return localStorage.getItem("theme") === "dark";
   });
 
   const [agents, setAgents] = useState([]);
@@ -22,15 +19,15 @@ function AgentDashboard() {
 
   // 2. The Theme Toggle Logic (Targeting HTML tag)
   useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) {
-      root.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      root.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  }, [darkMode]);
+  const root = document.documentElement;
+  if (darkMode) {
+    root.classList.add("dark");
+    localStorage.setItem("theme", "dark");
+  } else {
+    root.classList.remove("dark");
+    localStorage.setItem("theme", "light");
+  }
+}, [darkMode]);
 
   // 3. Fetch Data
   const fetchAgents = async () => {
@@ -122,7 +119,7 @@ function AgentDashboard() {
 
   return (
     // MAIN WRAPPER: This is what controls the background color
-    <div className="min-h-screen transition-colors duration-300 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white">
+    <div className="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white min-h-screen transition-colors duration-300">
       
       {/* Header */}
       <header className="sticky top-0 z-30 px-8 py-4 flex justify-between items-center backdrop-blur-md border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80">
