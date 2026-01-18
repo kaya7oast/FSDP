@@ -1,164 +1,301 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { X, Zap, Mic, Activity, Trash2, Moon, Sun } from 'lucide-react';
 
-// Initialize Web Speech API
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const canUseVoice = !!SpeechRecognition;
-const recognition = canUseVoice ? new SpeechRecognition() : null;
+const VoiceAssistant = () => {
+  // --- STATE ---
+  const [mode, setMode] = useState("offline");
+  const [transcript, setTranscript] = useState("");
+  const [assistantReply, setAssistantReply] = useState("");
+  const [isMicAlive, setIsMicAlive] = useState(false); 
 
-const AgentBuilderAssistant = ({ onUpdateForm, onComplete }) => {
-  const [messages, setMessages] = useState([
-    {
-      role: 'system',
-      content: `You are an expert AI Agent Architect. Your goal is to help the user configure a new AI Agent. 
-      Ask questions to gather: Agent Name, Description, Specialization, and Capabilities.
-      
-      CRITICAL OUTPUT RULE:
-      If you have enough information to define the agent, output ONLY a valid JSON object in this format:
-      {
-      +
-        "AgentName": "Name",
-        "Description": "Description",
-        "Specialization": "Specialization",
-        "Capabilities": "Cap1, Cap2", 
-        "Personality": { "Tone": "Professional", "ToneValue": 80 }
-      }
-      Do not add markdown formatting or extra text when outputting JSON.
-      If you need more info, just ask the user naturally.`
-    },
-    {
-      role: 'assistant',
-      content: "Hello! I'm here to help you build your AI Agent. Tell me, what kind of agent would you like to create today?"
-    }
-  ]);
-  const [input, setInput] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const messagesEndRef = useRef(null);
+  const navigate = useNavigate();
+  const recognitionRef = useRef(null);
+  const synthRef = useRef(window.speechSynthesis);
+  const adaVoiceRef = useRef(null);
+  
+  // Logic Refs
+  const isSystemActive = useRef(false);
+  const modeRef = useRef("offline"); 
+  const heartbeatTimer = useRef(null);
 
-  // Auto-scroll
+  // --- 1. SETUP ---
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      adaVoiceRef.current = voices.find(v => 
+        v.name.includes("Google US English") || 
+        v.name.includes("Zira") || 
+        v.name.includes("Samantha")
+      ) || voices[0];
+    };
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
 
-  // Text-to-Speech
-  const speak = (text) => {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
+    heartbeatTimer.current = setInterval(checkPulse, 1000);
+
+    return () => {
+      clearInterval(heartbeatTimer.current);
+      safeStop();
+    };
+  }, []);
+
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  const checkPulse = () => {
+    if (!isSystemActive.current) return;
+    if (modeRef.current === "sentry" && !recognitionRef.current) {
+        startSentryMode();
+    }
   };
 
-  // Auto-speak new assistant messages
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role === 'assistant' && messages.length > 2) {
-      speak(lastMessage.content);
+  // --- 2. CORE FUNCTIONS ---
+  const toggleSystem = () => {
+    if (mode === "offline") {
+      isSystemActive.current = true;
+      speak("Online.", () => startSentryMode());
+    } else {
+      isSystemActive.current = false;
+      safeStop();
     }
-  }, [messages]);
+  };
 
-  const handleSend = async (messageToSend) => {
-    const message = messageToSend || input;
-    if (!message.trim()) return;
+  const safeStop = () => {
+    setMode("offline");
+    setIsMicAlive(false);
+    if (recognitionRef.current) {
+      recognitionRef.current.onend = null;
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+    }
+    synthRef.current.cancel();
+  };
 
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
+  // --- 3. SPEECH RECOGNITION ---
+  const startSentryMode = () => {
+    if (!isSystemActive.current) return;
+    if (recognitionRef.current) recognitionRef.current.abort();
 
-    const userMsg = { role: 'user', content: message };
-    const newHistory = [...messages, userMsg];
-    setMessages(newHistory);
-    setInput('');
-    setIsProcessing(true);
+    setMode("sentry");
+    setTranscript("");
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new Recognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsMicAlive(true);
+    recognition.onend = () => {
+      setIsMicAlive(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.onresult = (event) => {
+      const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
+      if (text.includes("ada") || text.includes("aether")) {
+        recognition.onend = null;
+        recognition.stop();
+        speak("Yes?", () => startCommandMode());
+      }
+    };
+
+    recognitionRef.current = recognition;
+    try { recognition.start(); } catch(e) {}
+  };
+
+  const startCommandMode = () => {
+    if (!isSystemActive.current) return;
+    setMode("listening");
+    setTranscript("");
+
+    if (recognitionRef.current) recognitionRef.current.abort();
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new Recognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsMicAlive(true);
+    recognition.onend = () => {
+      setIsMicAlive(false);
+      recognitionRef.current = null;
+      if (isSystemActive.current && modeRef.current === "listening" && !transcript) {
+         startSentryMode();
+      }
+    };
+
+    recognition.onresult = (event) => {
+      const text = event.results[event.results.length - 1][0].transcript;
+      setTranscript(text);
+      if (event.results[event.results.length - 1].isFinal) {
+        handleSmartCommand(text);
+      }
+    };
+
+    recognitionRef.current = recognition;
+    try { recognition.start(); } catch(e) {}
+  };
+
+  // --- 4. THE BRAIN (UPDATED PROMPT) ---
+  const handleSmartCommand = async (command) => {
+    if (!command.trim()) { startSentryMode(); return; }
+
+    setMode("processing");
+    if (recognitionRef.current) recognitionRef.current.abort();
 
     try {
-      const response = await fetch('/ai/generate', {
+      // 🧠 NEW: Expanded System Prompt
+      const systemPrompt = `
+        You are Ada, a system controller.
+        USER COMMAND: "${command}"
+        
+        CAPABILITIES:
+        1. NAVIGATE: /dashboard, /builder, /conversations.
+        2. THEME: Toggle "dark" or "light" mode.
+        3. DELETE: Remove an agent by name (e.g. "Delete customer bot").
+        4. CHAT: General questions.
+
+        RETURN JSON ONLY:
+        { 
+          "action": "navigate" | "theme" | "delete" | "chat", 
+          "route": "/..." (only for navigate),
+          "theme": "dark" | "light" (only for theme),
+          "targetName": "name of agent" (only for delete),
+          "reply": "short spoken response" 
+        }
+      `;
+
+      const res = await fetch('/api/ai/system', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: 'openai', messages: newHistory })
+        body: JSON.stringify({ provider: 'openai', message: systemPrompt })
       });
 
-      const data = await response.json();
-      let aiContent = data.response || "I'm having trouble connecting. Please try again.";
+      const data = await res.json();
+      let rawJson = data.response?.candidates?.[0]?.content?.parts?.[0]?.text || 
+                    data.response?.choices?.[0]?.message?.content || "{}";
+      rawJson = rawJson.replace(/```json/g, "").replace(/```/g, "").trim();
+      
+      let result = {};
+      try { result = JSON.parse(rawJson); } catch (e) { result = { reply: rawJson }; }
 
-      try {
-        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const config = JSON.parse(jsonMatch[0]);
-          onUpdateForm(config);
-          aiContent = `I've updated the form for ${config.AgentName || 'your agent'}. Is there anything else you'd like to tweak?`;
+      const reply = result.reply || "Done.";
+      setAssistantReply(reply);
+
+      // --- EXECUTE ACTIONS ---
+      
+      // 1. Navigation
+      if (result.action === "navigate" && result.route) {
+        navigate(result.route);
+        speak(reply, () => setTimeout(startSentryMode, 500));
+      }
+      
+      // 2. Theme Control
+      else if (result.action === "theme") {
+        const root = document.documentElement;
+        if (result.theme === "dark") {
+           root.classList.add("dark");
+           localStorage.setItem("theme", "dark");
+        } else {
+           root.classList.remove("dark");
+           localStorage.setItem("theme", "light");
         }
-      } catch (e) { /* Not JSON, continue */ }
+        speak(reply, () => setTimeout(startSentryMode, 500));
+      }
 
-      setMessages(prev => [...prev, { role: 'assistant', content: aiContent }]);
-    } catch (error) {
-      console.error("AI Error:", error);
-      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I can't reach the AI service right now." }]);
-    } finally {
-      setIsProcessing(false);
+      // 3. Delete Agent (Advanced)
+      else if (result.action === "delete" && result.targetName) {
+        await performVoiceDelete(result.targetName, reply);
+      }
+
+      // 4. Chat
+      else {
+        speak(reply, () => setTimeout(startSentryMode, 500));
+      }
+
+    } catch (err) {
+      console.error(err);
+      speak("Error connecting.", () => startSentryMode());
     }
   };
 
-  const startListening = () => {
-    if (!recognition) return alert("Browser not supported");
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
-    recognition.lang = 'en-US';
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onresult = (e) => setInput(e.results[0][0].transcript);
-    recognition.start();
+  // --- 5. HELPER: VOICE DELETE ---
+  const performVoiceDelete = async (targetName, initialReply) => {
+     try {
+        // A. Fetch all agents to find the ID
+        const listRes = await fetch('/agents'); // Uses Proxy
+        const agents = await listRes.json();
+        
+        // B. Fuzzy Match (Find agent that contains the spoken name)
+        const match = agents.find(a => 
+           a.AgentName?.toLowerCase().includes(targetName.toLowerCase())
+        );
+
+        if (match) {
+           // C. Perform Delete
+           await fetch(`/agents/${match._id}/delete`, { method: 'POST' });
+           speak(`Deleted agent ${match.AgentName}.`, () => {
+              window.location.reload(); // Refresh to show changes
+           });
+        } else {
+           speak(`I couldn't find an agent named ${targetName}.`, () => startSentryMode());
+        }
+     } catch(e) {
+        speak("I failed to delete that agent.", () => startSentryMode());
+     }
   };
 
+  const speak = (text, onComplete) => {
+    setMode("speaking");
+    if (synthRef.current.speaking) synthRef.current.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    if (adaVoiceRef.current) utterance.voice = adaVoiceRef.current;
+    utterance.rate = 1.1;
+    utterance.onend = () => { if (onComplete) onComplete(); };
+    synthRef.current.speak(utterance);
+  };
+
+  // --- RENDER ---
+  if (mode === "offline") {
+    return (
+      <button onClick={toggleSystem} className="fixed bottom-6 right-6 z-50 bg-indigo-600 text-white p-4 rounded-full shadow-xl hover:scale-110 transition-transform">
+        <Mic size={24} />
+      </button>
+    );
+  }
+
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-[600px]">
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-purple-600">smart_toy</span>
-            <h3 className="font-bold">AI Architect</h3>
-            {isSpeaking && <span className="flex gap-1 ml-2"><span className="w-1 h-3 bg-purple-500 animate-pulse"/></span>}
+    <>
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 group">
+        <div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded flex items-center gap-2">
+           <div className={`w-2 h-2 rounded-full ${isMicAlive ? 'bg-green-500 animate-pulse' : 'bg-orange-500'}`}></div>
+           <span>{isMicAlive ? "Active" : "..."}</span>
         </div>
-        <button onClick={() => {window.speechSynthesis.cancel(); setIsSpeaking(false)}} className="text-slate-400 hover:text-red-500">
-           <span className="material-symbols-outlined">volume_off</span>
+        <button onClick={toggleSystem} className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all border-2 ${mode === 'sentry' ? "bg-indigo-600 border-indigo-400" : "bg-green-500 border-green-400 animate-pulse"}`}>
+           {mode === 'sentry' ? <Mic size={24} className="text-white" /> : <Activity size={24} className="text-white animate-bounce"/>}
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.filter(m => m.role !== 'system').map((msg, idx) => (
-          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-slate-100 dark:bg-slate-800 rounded-bl-none'}`}>
-              {msg.content}
+      {(mode === "listening" || mode === "processing" || mode === "speaking") && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-700 animate-in zoom-in-95">
+            <div className={`p-4 text-white text-center relative ${mode === 'processing' ? 'bg-purple-600' : 'bg-indigo-600'}`}>
+               <button onClick={() => startSentryMode()} className="absolute top-3 right-3 opacity-70 hover:opacity-100"><X size={18} /></button>
+               <h3 className="font-bold text-lg">{mode === 'processing' ? "Thinking..." : "Ada"}</h3>
+            </div>
+            <div className="p-8 text-center min-h-[150px] flex flex-col items-center justify-center">
+              <p className="text-xl text-slate-800 dark:text-slate-100 font-medium mb-4">"{transcript || assistantReply}"</p>
+              {/* Context Icon based on Action */}
+              {assistantReply.toLowerCase().includes("delet") && <Trash2 className="text-red-500 mb-2" size={32} />}
+              {assistantReply.toLowerCase().includes("mode") && <Moon className="text-blue-500 mb-2" size={32} />}
             </div>
           </div>
-        ))}
-        {isProcessing && <div className="text-slate-400 text-sm px-4">Thinking...</div>}
-        <div ref={messagesEndRef} />
-      </div>
-
-      <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-        <div className="flex gap-2">
-          {canUseVoice && (
-            <button onClick={isListening ? () => recognition.stop() : startListening} className={`p-3 rounded-full ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200'}`}>
-                <span className="material-symbols-outlined">{isListening ? 'mic_off' : 'mic'}</span>
-            </button>
-          )}
-          <input 
-            className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full px-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Describe your agent..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          />
-          <button onClick={() => handleSend()} className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700">
-            <span className="material-symbols-outlined">send</span>
-          </button>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 };
 
-export default AgentBuilderAssistant;
+export default VoiceAssistant;
