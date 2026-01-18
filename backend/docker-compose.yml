@@ -25,6 +25,8 @@ services:
       MONGO_URI: ${AGENT_DB}   # MongoDB Compass URI from .env
     ports:
       - "4001:4001"
+    volumes:
+      - ./agent-service/uploads:/app/uploads   
     networks:
       - backend
 
@@ -67,7 +69,26 @@ services:
       - "4003:4003"
     networks:
       - backend
+  retrieval-service:
+    build: ./retrieval-service
+    container_name: retrieval-service
+    environment:
+      PORT: 4005 
+    ports:
+      - "4005:4005"
 
+  ingestion-service:
+    build: ./ingestion-service
+    container_name: backend-ingestion-service
+    ports:
+      - "4006:4006"
+    volumes:
+      - ./ingestion-service:/app   # Make sure this maps your host code into /app
+    working_dir: /app
+    environment:
+      PORT: 4006
+      MONGO_URI: ${INGESTION_DB}  # MongoDB Compass URI from .env
+      EMBEDDING_SERVICE_URL: http://embedding-service:5000
 networks:
   backend:
     driver: bridge

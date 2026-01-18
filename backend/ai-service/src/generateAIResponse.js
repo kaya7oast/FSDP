@@ -35,7 +35,7 @@ export async function generateAIResponse(provider, messageOrMessages) {
     } catch (err) {
       console.error("OpenAI generate error:", err?.message || err);
       return "AI provider error (OpenAI)";
-    }
+    } 
   }
 
   if (provider === "gemini") {
