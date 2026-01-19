@@ -15,9 +15,68 @@ async function getAgentbyId(agentId) {
     return null;
   }
 }
+//choose the correct AI providers
+async function routeLLM({ agent, userMessage, phase = "analysis" }) {
+  const routerProvider = "openai";
+
+  const routingPrompt = `
+You are an LLM routing controller.
+
+Your job is to choose the BEST language model provider
+for the CURRENT agent and task phase.
+
+PHASE:
+${phase}
+(analysis = internal reasoning, research, critique)
+(synthesis = final user-facing response)
+
+AGENT ROLE:
+${agent.Specialization}
+
+AGENT MISSION:
+${agent.Description}
+
+USER MESSAGE:
+"${userMessage}"
+
+Available providers:
+- openai → best for coding, logic, debugging
+- gemini → best for deep reasoning, explanations
+- perplexity → best for writing, tone, creativity
+- deepseek → best for factual lookup, search-heavy tasks
+
+RULES:
+- Choose ONLY ONE provider
+- Prefer DIFFERENT providers across agents when appropriate
+- Return ONLY one word
+
+Answer with exactly one of:
+openai | gemini | perplexity | deepseek
+`;
+
+  try {
+    const decision = await generateAIResponse(routerProvider, [
+      { role: "system", content: routingPrompt },
+    ]);
+
+    const provider = decision.trim().toLowerCase();
+
+    if (["openai", "gemini", "perplexity", "deepseek"].includes(provider)) {
+      console.log(
+    `[LLM ROUTER] agent="${agent.AgentName}" phase="${phase}" → provider="${provider}"`
+  ); //remove when done
+      return provider;
+    }
+  } catch (e) {
+    console.warn("LLM routing failed, fallback used:", e.message);
+  }
+
+  return agent?.LLMProvider || "openai";
+}
+
 
 // Helper: call AI service to generate a response
-async function generateAIResponse(provider = "openai", messages = []) {
+async function generateAIResponse(provider , messages = []) {
   if (!AI_SERVICE_URL) {
     throw new Error("AI_SERVICE_URL not configured");
   }
@@ -50,6 +109,7 @@ function generateConversationId(userId, agentID) {
 }
 
 // Chat with agent
+// Chat with agent
 export const chatWithAgent = async (req, res) => {
   const { agentId } = req.params;
   const { 
@@ -69,52 +129,73 @@ export const chatWithAgent = async (req, res) => {
       return res.status(404).json({ error: "Agent not found" });
     }
 
-    const agent = agentResponse.agent;
+    const supervisor = agentResponse.agent;
 
+    // 🗂 Load ALL agents as a catalog (excluding supervisor)
+    const allAgentsResp = await axios.get(`${AGENT_SERVICE_URL}/agents`);
 
+    // 🛠️ FIX: Handle if API returns raw array OR object wrapper
+    const rawAgents = Array.isArray(allAgentsResp.data) 
+      ? allAgentsResp.data 
+      : (allAgentsResp.data.agents || []);
 
-    const personality = agent.Personality || {};
+    const agentCatalog = rawAgents.filter(
+      a => String(a._id) !== String(supervisor._id)
+    );
 
+    // 🧠 Supervisor selects relevant sub-agents dynamically
+    const selectedAgentIds = await supervisorSelectAgents({
+      supervisor,
+      agents: agentCatalog,
+      userMessage: message,
+    });
+    
+    // 🎯 Build active sub-agent list
+    const activeSubAgents = agentCatalog.filter(agent =>
+      selectedAgentIds.includes(String(agent._id))
+    );
+
+    if (activeSubAgents.length === 0) {
+      console.warn(
+        "[AGENT ROUTER] No agents selected — supervisor handling alone"
+      );
+    } else {
+      // 🪵 Debug log
+      console.log(
+        "[AGENT ROUTER] Active sub-agents:",
+        activeSubAgents.map(a => a.AgentName)
+      );
+    }
+
+    // 🛟 Safety fallback (Simple keyword match if LLM failed to pick agents)
+    if (activeSubAgents.length === 0) {
+       // Optional: Add basic keyword matching here if you want a backup
+    }
+
+    const personality = supervisor.Personality || {};
     const tone = personality.Tone || "helpful";
-
     const style = personality.LanguageStyle || "concise";
-
     const emotion = personality.Emotion || "neutral";
 
-
-    const capabilities = Array.isArray(agent.Capabilities) 
-
-      ? agent.Capabilities.join(", ") 
-
-      : (agent.Capabilities || "General Assistance");
-
+    const capabilities = Array.isArray(supervisor.Capabilities) 
+      ? supervisor.Capabilities.join(", ") 
+      : (supervisor.Capabilities || "General Assistance");
 
     const systemMessage = `
-
-      You are ${agent.AgentName || "an AI Assistant"}.
-
+      You are ${supervisor.AgentName || "an AI Assistant"}.
       YOUR IDENTITY:
-
-      - Role: ${agent.Specialization || "Assistant"}
-
-      - Mission: ${agent.Description || "Help the user."}
-
+      - Role: ${supervisor.Specialization || "Assistant"}
+      - Mission: ${supervisor.Description || "Help the user."}
       - Capabilities: ${capabilities}
     
       YOUR PERSONALITY:
-
       - Tone: ${tone}
-
       - Style: ${style}
-
       - Attitude: ${emotion}
-
+s
       INSTRUCTIONS:
-
       Stay in character. Use your specific capabilities to help the user. 
-
       If asked what you can do, list your specific capabilities.
-
     `;
 
     let conversation = null;
@@ -136,7 +217,7 @@ export const chatWithAgent = async (req, res) => {
         userId,
         agentId,
         provider,
-        chatname: chatname || `Chat with ${agent.AgentName || "Agent"}`,
+        chatname: chatname || `Chat with ${supervisor.AgentName || "Agent"}`,
         messages: [
           {
             role: "system",
@@ -150,17 +231,85 @@ export const chatWithAgent = async (req, res) => {
     conversation.messages.push({
       role: "user",
       content: message,
+      visibility: "user",
       createdAt: new Date().toISOString(),
     });
 
-    const messagesToSend = conversation.messages.slice(-10);
+    // Sub-agent analysis loop
+    const internalResults = await Promise.all(
+      activeSubAgents.map(async (subAgent) => {
 
-    const replyText = await generateAIResponse(provider, messagesToSend);
+        const subPrompt = buildAgentSystemPrompt(subAgent, message);
+
+        const chosenProvider = await routeLLM({
+          agent: subAgent,
+          userMessage: message,
+        });
+
+        console.log(
+          `[SUB-AGENT] ${subAgent.AgentName} using provider="${chosenProvider}"`
+        );
+
+        const subReply = await generateAIResponse(chosenProvider, [
+          { role: "system", content: subPrompt },
+        ]);
+
+        conversation.messages.push({
+          role: "assistant",
+          agentId: subAgent._id,
+          content: subReply,
+          visibility: "internal",
+          createdAt: new Date().toISOString(),
+        });
+
+        return {
+          name: subAgent.AgentName,
+          reply: subReply,
+        };
+      })
+    );
+    
+    // Supervisor Synthesis
+    const supervisorPrompt = buildSupervisorPrompt(
+      supervisor,
+      activeSubAgents
+    );
+
+    const supervisorMessages = [
+      {
+        role: "system",
+        content: supervisorPrompt,
+      },
+      {
+        role: "user",
+        content: message,
+      },
+      {
+        role: "system",
+        content: `INTERNAL ANALYSES (do not expose):\n\n${internalResults
+          .map(r => `${r.name}:\n${r.reply}`)
+          .join("\n\n")}`,
+      },
+    ];
+
+    const supervisorProvider = await routeLLM({
+      agent: supervisor,
+      userMessage: message,
+      phase: "synthesis",
+    });
+
+    console.log(
+      `[SUPERVISOR] ${supervisor.AgentName} using provider="${supervisorProvider}"`
+    );
+
+    const replyText = await generateAIResponse(supervisorProvider, supervisorMessages);
 
     const reply = {
-      role: "assistant",
-      content: replyText,
-      createdAt: new Date().toISOString(),
+        role: "assistant",
+        agentId: supervisor._id,
+        content: replyText,
+        visibility: "user",
+        createdAt: new Date().toISOString(),
     };
 
     conversation.messages.push(reply);
@@ -170,8 +319,14 @@ export const chatWithAgent = async (req, res) => {
       reply, 
       conversationId: conversation.conversationId 
     });
-
-  } catch (err) {
+    
+  } catch (err) { 
+    console.error(
+      "ERROR SOURCE:",
+      err?.response?.status,
+      err?.response?.data,
+      err.message
+    );
     console.error("chatWithAgent Critical Error:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
   }
@@ -254,3 +409,106 @@ export const allConversations = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+function buildAgentSystemPrompt(agent, userMessage) {
+  const p = agent.Personality || {};
+  return `
+You are ${agent.AgentName}.
+
+Role: ${agent.Specialization}
+Mission: ${agent.Description}
+
+Your task:
+Analyze the user's message from YOUR perspective only.
+Do NOT answer the user directly.
+Provide insights, facts, risks, or recommendations
+that help a supervisor agent craft a final response.
+
+User message:
+"${userMessage}"
+
+Tone: ${p.Tone || "helpful"}
+Style: ${p.LanguageStyle || "concise"}
+
+Return only your analysis.
+`;
+}
+
+function buildSupervisorPrompt(supervisor, subAgents) {
+  const p = supervisor.Personality || {};
+
+  return `
+You are ${supervisor.AgentName}, the SUPERVISOR agent.
+
+ROLE:
+You are the single point of communication with the user.
+You coordinate multiple internal specialist agents and synthesize
+their insights into ONE final, high-quality response.
+
+OBJECTIVE:
+- Fully understand the user's request
+- Evaluate all sub-agent analyses
+- Resolve disagreements between sub-agents
+- Select the most accurate and useful information
+- Produce a clear, confident, and complete final answer
+
+SUB-AGENT POLICY:
+- Sub-agents are INTERNAL specialists
+- Their outputs may overlap or conflict
+- You must judge correctness and relevance
+- You must NOT quote or name sub-agents
+
+AVAILABLE SUB-AGENTS:
+${subAgents.map(a => `- ${a.AgentName}: ${a.Specialization}`).join("\n")}
+
+COMMUNICATION RULES:
+- Do NOT mention sub-agents or internal steps
+- Do NOT expose analysis, chain-of-thought, or deliberation
+- Do NOT copy raw sub-agent responses
+- Speak directly and naturally to the user
+
+PERSONALITY GUIDELINES:
+- Tone: ${p.Tone || "helpful"}
+- Style: ${p.LanguageStyle || "concise"}
+- Attitude: ${p.Emotion || "neutral"}
+
+FINAL OUTPUT REQUIREMENTS:
+- Provide a single, coherent response
+- Be decisive and authoritative
+- Optimize for correctness, clarity, and usefulness
+`;
+}
+
+async function supervisorSelectAgents({ supervisor, agents, userMessage }) {
+  const prompt = `
+You are ${supervisor.AgentName}, acting as a supervisor.
+
+User request:
+"${userMessage}"
+
+Available specialist agents:
+${agents.map(
+  a => `ID: ${a._id}
+Name: ${a.AgentName}
+Specialization: ${a.Specialization}
+Description: ${a.Description}`
+).join("\n\n")}
+
+RULES:
+- Select ONLY agents relevant to the request
+- Choose 1–3 agents max
+- Return ONLY agent IDs
+- Comma-separated
+- No explanation
+`;
+
+  const decision = await generateAIResponse("openai", [
+  { role: "system", content: prompt },
+]);
+
+// Clean the response: remove quotes, backticks, or "ID:" prefixes if the LLM hallucinated them
+return decision
+  .split(",")
+  .map(id => id.trim().replace(/['"`]|ID:\s*/g, "")) 
+  .filter(Boolean);
+}

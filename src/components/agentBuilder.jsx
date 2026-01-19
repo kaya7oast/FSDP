@@ -116,13 +116,17 @@ const AgentBuilder = () => {
       // 6. CONSTRUCT PAYLOAD
       const agentData = {
         ...formData,
-        AgentName: visualName,
-        Description: visualDesc,
-        Capabilities: finalCapabilities,
-        Personality: {
-            ...formData.Personality,
-            SystemPrompt: finalSystemPrompt // <--- The "Brain" is now populated!
+        // 1. LINK IDENTITY: Add the Owner object required by your agentModel.js
+        Owner: {
+          UserID: localStorage.getItem('userId'),
+          UserName: localStorage.getItem('username')
         },
+        
+        // 2. FORMAT DATA: Convert string capabilities to an array
+        Capabilities: typeof formData.Capabilities === 'string' 
+          ? formData.Capabilities.split(',').map(item => item.trim()).filter(i => i)
+          : formData.Capabilities,
+
         WorkflowVisual: workflowData
       };
 
@@ -140,7 +144,8 @@ const AgentBuilder = () => {
         navigate('/dashboard');
       } else {
         const err = await response.json();
-        alert('Error: ' + (err.error || 'Failed to save'));
+        // This will now show you specific Mongoose validation errors if they occur
+        alert('Error: ' + (err.error || err.message || 'Failed to save'));
       }
     } catch (error) {
       console.error(error);

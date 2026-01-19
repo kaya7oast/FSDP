@@ -90,7 +90,12 @@ export const getAgentbyId = async (req, res) => {
 // --- GET ALL AGENTS ---
 export const getAllAgents = async (req, res) => {
   try {
-    const agents = await Agent.find();
+    // OLD: const agents = await Agent.find(); 
+    
+    // NEW: Find everything where Status is NOT "deleted"
+    // $ne means "Not Equal"
+    const agents = await Agent.find({ Status: { $ne: "deleted" } });
+    
     res.json(agents);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -120,8 +125,9 @@ export const updateAgent = async (req, res) => {
 // --- DELETE AGENT ---
 export const deleteAgent = async (req, res) => {
   try {
-    const agent = await Agent.findOneAndUpdate(
-      { AgentID: String(req.params.agentId) },
+    // FIX: Must use findByIdAndUpdate for Mongo _id
+    const agent = await Agent.findByIdAndUpdate(
+      req.params.agentId, 
       { Status: "deleted" },
       { new: true }
     );
