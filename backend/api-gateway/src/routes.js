@@ -7,7 +7,10 @@
       createProxyMiddleware({
         // Use env variable OR fallback to the docker service name
         target: process.env.AGENT_SERVICE || "http://agent-service:4001",
-        changeOrigin: true
+        changeOrigin: true,
+        pathRewrite: {
+        '^/agents': '',
+        },
       })
     );
 
@@ -16,7 +19,10 @@
     "/conversations",
     createProxyMiddleware({
       target: "http://conversation-service:4002",
-      changeOrigin: true
+      changeOrigin: true,
+      pathRewrite: {
+        '^/conversations': '', 
+      },
     })
   );
 
@@ -44,7 +50,10 @@
     "/users",
     createProxyMiddleware({
       target: "http://user-service:4003",
-      changeOrigin: true
+      changeOrigin: true,
+      pathRewrite: {
+        '^/users': '', // Removes '/users' so the service sees '/register'
+      },
     })
   );
 }
