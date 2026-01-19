@@ -37,17 +37,98 @@ const AgentBuilder = () => {
 
   const handleSave = async () => {
     try {
+      // 1. SETUP: Variables to hold our extracted visual data
+      let visualName = formData.AgentName;
+      let visualDesc = formData.Description;
+      let visualCapabilities = [];
+      let identityInstructions = []; // Store text from Identity nodes
+      let outputRules = [];          // Store text from Output nodes
+
+      // 2. VISUAL EXTRACTION LOOP
+      if (workflowData && workflowData.visual && workflowData.visual.nodes) {
+        
+        const nodes = workflowData.visual.nodes;
+        const edges = workflowData.visual.edges || [];
+
+        // A. Find Core Node
+        const coreNode = nodes.find(n => n.type === 'core' || n.data?.category === 'CORE');
+        
+        if (coreNode) {
+            visualName = coreNode.data.label;
+            visualDesc = coreNode.data.content;
+
+            // B. Get Connected Node IDs
+            const connectedNodeIds = new Set();
+            edges.forEach(edge => {
+                if (edge.source === coreNode.id) connectedNodeIds.add(edge.target);
+                if (edge.target === coreNode.id) connectedNodeIds.add(edge.source);
+            });
+
+            // C. Loop through ALL connected nodes to categorize them
+            nodes.forEach(n => {
+                if (connectedNodeIds.has(n.id)) {
+                    const cat = n.data?.category || '';
+                    const label = n.data?.label || '';
+                    const content = n.data?.content || '';
+
+                    // -- KNOWLEDGE -> Capabilities --
+                    if (cat.includes('Knowledge') || cat.includes('Tool') || cat.includes('Capability')) {
+                        visualCapabilities.push(label);
+                    }
+
+                    // -- IDENTITY -> System Prompt Persona --
+                    else if (cat.includes('Identity') || cat.includes('Persona') || cat.includes('Role')) {
+                        identityInstructions.push(`${label}: ${content}`);
+                    }
+
+                    // -- OUTPUT -> System Prompt Formatting --
+                    else if (cat.includes('Output') || cat.includes('Format') || cat.includes('Style') || cat.includes('Mode')) {
+                        outputRules.push(`${label}: ${content}`);
+                    }
+                }
+            });
+        }
+      }
+
+      // 3. BUILD THE SYSTEM PROMPT
+      // We combine manual prompt + identity + output rules
+      let finalSystemPrompt = formData.Personality.SystemPrompt || "";
+      
+      if (identityInstructions.length > 0) {
+          finalSystemPrompt += "\n\n### IDENTITY & PERSONA\n" + identityInstructions.join('\n');
+      }
+      if (outputRules.length > 0) {
+          finalSystemPrompt += "\n\n### OUTPUT FORMATTING RULES\n" + outputRules.join('\n');
+      }
+
+      // 4. VALIDATION
+      if (!visualName || visualName.trim() === "" || visualName === "Agent Persona") {
+        alert("Please rename your Agent (Click the 'Agent Persona' node to rename it).");
+        return;
+      }
+
+      // 5. MERGE CAPABILITIES
+      let existingCaps = typeof formData.Capabilities === 'string' 
+          ? formData.Capabilities.split(',').map(item => item.trim()).filter(i => i) 
+          : (Array.isArray(formData.Capabilities) ? formData.Capabilities : []);
+      const finalCapabilities = [...new Set([...existingCaps, ...visualCapabilities])];
+
+      // 6. CONSTRUCT PAYLOAD
       const agentData = {
         ...formData,
-        // Convert string capabilities back to array for DB if needed, or keep as string
-        Capabilities: typeof formData.Capabilities === 'string' 
-          ? formData.Capabilities.split(',').map(item => item.trim()).filter(i => i)
-          : formData.Capabilities,
-
+        AgentName: visualName,
+        Description: visualDesc,
+        Capabilities: finalCapabilities,
+        Personality: {
+            ...formData.Personality,
+            SystemPrompt: finalSystemPrompt // <--- The "Brain" is now populated!
+        },
         WorkflowVisual: workflowData
       };
 
-      // Use relative path - Proxy handles the rest
+      console.log("🚀 Deploying Agent Payload:", agentData);
+
+      // 7. SEND TO BACKEND
       const response = await fetch('/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -55,7 +136,7 @@ const AgentBuilder = () => {
       });
 
       if (response.ok) {
-        alert("Agent Deployed Successfully!");
+        alert(`Agent "${visualName}" Deployed Successfully!`);
         navigate('/dashboard');
       } else {
         const err = await response.json();
@@ -122,7 +203,7 @@ const AgentBuilder = () => {
         
         {viewMode === 'assistant' ? (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-6 mb-6 text-white shadow-lg">
+                <div className="bg-linear-to-r from-purple-600 to-blue-600 rounded-xl p-6 mb-6 text-white shadow-lg">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
                             <span className="material-symbols-outlined text-2xl">auto_awesome</span>

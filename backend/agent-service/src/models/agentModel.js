@@ -18,6 +18,9 @@ const agentSchema = new mongoose.Schema({
     EmotionValue: Number
   },
 
+  VisualNodes: { type: Array, default: [] }, 
+  SystemPrompt: { type: String, default: "" }, // The "Brain"
+
   Capabilities: [String],
 
   KnowledgeBase: {

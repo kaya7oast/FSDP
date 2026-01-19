@@ -146,7 +146,7 @@ function AgentDashboard() {
                  {darkMode ? 'light_mode' : 'dark_mode'}
                </span>
              </button>
-             <Link to="/builder" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/20 hover:translate-y-[-2px] transition-all">
+             <Link to="/builder" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 transition-all">
                <span className="material-symbols-outlined text-[20px]">add</span>
                Create Agent
              </Link>
