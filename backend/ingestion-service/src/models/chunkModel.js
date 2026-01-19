@@ -2,12 +2,12 @@ import mongoose from "mongoose";
 
 const chunkSchema = new mongoose.Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId, // or String if JWT-based
+     type: String, // or String if JWT-based
     required: true,
     index: true
   },
   docId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     required: true,
     index: true
   },

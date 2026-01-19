@@ -16,10 +16,10 @@ export async function uploadFile(req, res) {
       const embedding = await embedText(chunks[i]);
 
       const doc = new Chunk({
-        userId: req.body.userId || "1", //Change ID here
-        docId: req.body.docId || req.file.originalname,
+        userId: req.body.userId || "1",
+        docId: req.body.docId || req.file.originalname || "1",
         chunkIndex: i,
-        content: chunks[i],
+        text: chunks[i],
         embedding: embedding,
         source: req.file.originalname
       });

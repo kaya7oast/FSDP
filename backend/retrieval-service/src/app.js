@@ -1,21 +1,48 @@
 import express from "express";
-import mongoose from "mongoose";
+import cors from "cors";
 import dotenv from "dotenv";
-import { retrieveChunks } from "./controllers/retrievalController.js";
+import mongoose from "mongoose";
+
+import { retrieve } from "./controllers/retrievalController.js";
 
 dotenv.config();
 
 const app = express();
-app.use(express.json());
 
+/* =======================
+   Middleware
+======================= */
+app.use(cors());
+app.use(express.json({ limit: "1mb" }));
+
+/* =======================
+   Health Check
+======================= */
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "retrieval-service running" });
+});
+
+/* =======================
+   Retrieval Endpoint
+======================= */
+app.post("/retrieve", retrieve);
+
+/* =======================
+   MongoDB Connection
+======================= */
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => console.error(err));
+  .then(() => {
+    console.log("Retrieval-service MongoDB connected");
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+  });
 
-app.post("/retrieve", retrieveChunks);
-
-const PORT = process.env.PORT || 4005;
+/* =======================
+   Server
+======================= */
+const PORT = 4005;
 app.listen(PORT, () => {
-  console.log(`Retrieval service running on port ${PORT}`);
+  console.log(`Retrieval-service running on port ${PORT}`);
 });

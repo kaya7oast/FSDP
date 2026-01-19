@@ -1,55 +1,63 @@
 import KnowledgeChunk from "../models/KnowledgeChunk.js";
-import OpenAI from "openai";
+import axios from "axios";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const retrieveChunks = async (req, res) => {
+  // logic
+};
 
-export const retrieveChunks = async (req, res) => {
+
+
+
+export async function retrieve(req, res) {
   try {
-    const { user_id, document_id, query } = req.body;
-
-    if (!user_id || !document_id || !query) {
-      return res.status(400).json({ error: "Missing fields" });
-    }
+    const { query, userId, docId } = req.body;
 
     // 1️⃣ Embed user query
-    const embeddingResponse = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: query
-    });
+    const embeddingResp = await axios.post(
+      "https://api.openai.com/v1/embeddings",
+      {
+        model: "text-embedding-3-small",
+        input: query
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        }
+      }
+    );
 
-    const queryVector = embeddingResponse.data[0].embedding;
+    const queryVector = embeddingResp.data.data[0].embedding;
 
-    // 2️⃣ Vector search with metadata filtering
-    const results = await KnowledgeChunk.aggregate([
+    // 2️⃣ Vector search
+    const pipeline = [
       {
         $vectorSearch: {
           index: "vector_index",
-          queryVector,
           path: "embedding",
-          filter: {
-            owner_id: user_id,
-            document_id: document_id
-          },
+          queryVector,
           numCandidates: 100,
-          limit: 5
+          limit: 5,
+          filter: {
+            userId,
+            ...(docId && { docId })
+          }
         }
       },
       {
         $project: {
-          _id: 0,
-          chunk_text: 1,
-          page: 1,
-          chunk_index: 1
+          text: 1,
+          score: { $meta: "vectorSearchScore" },
+          docId: 1
         }
       }
-    ]);
+    ];
 
-    res.json({ chunks: results });
+    const chunks = await KnowledgeChunk.aggregate(pipeline);
 
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Retrieval failed" });
+    res.json(chunks);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Vector retrieval failed" });
   }
-};
+}
+
