@@ -28,7 +28,7 @@ mongoose.connect(process.env.MONGO_URI, { dbName: "conversationDB" })
 
 // Routes
 app.post("/conversations/:agentId/chat", chatWithAgent);
-app.get("/conversations/:conversationId",  getConversation);
+app.get("/conversations/:conversationId", getConversation);
 app.get("/conversations/user/:userId", getAllConversations);
 app.post("/conversations/:conversationId/delete", deleteConversation);
 app.post("/conversations/:conversationId/summarize", summarizeConversation);

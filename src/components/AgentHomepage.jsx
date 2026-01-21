@@ -102,7 +102,7 @@ const AgentHomepage = () => {
 
             <button
               type="button"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/builder')}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
               title="Go to Agent dashboard to create a new agent"
             >

@@ -2,9 +2,7 @@ import mongoose from "mongoose";
 
 const agentSchema = new mongoose.Schema({
   AgentID: { type: String },
-
   AgentName: { type: String, required: true },
-
   Description: String,
   Specialization: String,
   Region: String,
@@ -17,6 +15,9 @@ const agentSchema = new mongoose.Schema({
     StyleValue: Number,
     EmotionValue: Number
   },
+
+  VisualNodes: { type: Array, default: [] }, 
+  SystemPrompt: { type: String, default: "" }, // The "Brain"
 
   Capabilities: [String],
 
@@ -44,21 +45,21 @@ const agentSchema = new mongoose.Schema({
   TasksCompleted: Number,
 
   Owner: {
-    UserID: String,
+    // We add index: true to make searching for "My Agents" lightning fast
+    // We add required: true to ensure every agent has an owner
+    UserID: { type: String, required: true, index: true }, 
     UserName: String
   },
 
-  Status: { type: String, enum: ["Active", "Deleted"], default: "Active" },
+  Status: { type: String, enum: ["Active", "Deleted", "Archived"], default: "Active" },
 
   CreatedAt: { type: Date, default: Date.now },
   UpdatedAt: { type: Date, default: Date.now }
 });
 
-
-
-// Auto-generate AgentID before saving
+// Auto-generate AgentID before saving (remains exactly as you wrote it)
 agentSchema.pre("save", async function (next) {
-  if (this.AgentID) return next(); // skip if already set
+  if (this.AgentID) return next();
 
   const lastAgent = await this.constructor
     .findOne({ AgentID: { $ne: null } })
@@ -72,7 +73,6 @@ agentSchema.pre("save", async function (next) {
   this.AgentID = nextNumber.toString().padStart(3, "0");
   next();
 });
-
 
 const Agent = mongoose.model("agents", agentSchema, "agents");
 export default Agent;

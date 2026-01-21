@@ -7,7 +7,7 @@ dotenv.config();
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+// app.use(express.json());
 
 
 // Load Proxy Routes
@@ -27,6 +27,10 @@ console.log("API Gateway targets:", {
   USER_SERVICE: process.env.USER_SERVICE
 });
 
-app.listen(process.env.PORT, () =>
-  console.log(`🟧 API Gateway running on port ${process.env.PORT}`)
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🟧 API Gateway running on port ${PORT}`);
+}
 );

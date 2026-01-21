@@ -1,390 +1,247 @@
-"use client"
+import React, { useState, useEffect, useRef } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
 
-import { useState } from "react"
-import { Button } from "./button.jsx"
-import { Input } from "./input.jsx"
-import { Avatar, AvatarFallback, AvatarImage } from "./avatar.jsx"
-import { Search, MoreVertical, Send, Paperclip, Mic, X, Megaphone, Headset, FlaskConical } from 'lucide-react'
+// Hardcoded user ID for now (matches your builder default)
+const USER_ID = "U002"; 
 
+export default function AgentConversation() {
+  const [agents, setAgents] = useState([]);
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [conversationId, setConversationId] = useState(null); // To track the current session
+  
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef(null);
 
+  // 1. Fetch Real Agents on Mount
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const res = await fetch("/agents"); // Goes to Agent Service via Gateway
+        if (!res.ok) throw new Error("Failed to load agents");
+        const data = await res.json();
+        
+        // Filter only active agents if needed, or take all
+        const activeAgents = Array.isArray(data) ? data : [];
+        setAgents(activeAgents);
 
-const userId = "67"; // You can later replace this with dynamic login/session ID
-
-const sendMessageToBackend = async (message, agentId, userId) => {
-  const res = await fetch(`http://localhost:3000/api/agents/${agentId}/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, message })
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json();
-    console.error("Backend error response:", errorData);
-    throw new Error("Backend error");
-  }
-
-  const data = await res.json();
-  // Return the last agent message from the conversation
-  const lastMessage = data.messages[data.messages.length - 1];
-  return lastMessage.content;
-};
-
-const handleSendMessage = async () => {
-  if (!inputMessage.trim()) return;
-
-  // Prepare user message for UI
-  const userMessage = {
-    id: Date.now().toString(),
-    sender: "user",
-    content: inputMessage,
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=john"
-  };
-
-  // Add user message to UI immediately
-  setMessages(prev => [...prev, userMessage]);
-
-  const messageToSend = inputMessage;
-  setInputMessage(""); // clear input field
-
-  try {
-    // Call backend
-    const backendReply = await sendMessageToBackend(messageToSend, selectedAgent.id, userId);
-
-    const agentMessage = {
-      id: (Date.now() + 1).toString(),
-      sender: "agent",
-      content: backendReply,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      avatar: selectedAgent.avatar
+        // Select the first agent automatically if available
+        if (activeAgents.length > 0) {
+          setSelectedAgent(activeAgents[0]);
+        }
+      } catch (err) {
+        console.error("Error fetching agents:", err);
+      }
     };
+    fetchAgents();
+  }, []);
 
-    // Add agent reply to UI
-    setMessages(prev => [...prev, agentMessage]);
-
-  } catch (err) {
-    console.error("Error contacting backend:", err);
-
-    const errorMessage = {
-      id: (Date.now() + 1).toString(),
-      sender: "agent",
-      content: "⚠️ Error: Could not contact backend.",
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      avatar: selectedAgent.avatar
-    };
-
-    setMessages(prev => [...prev, errorMessage]);
-  }
-};
-
-
-const agents = [
-  {
-    id: "marketing",
-    name: "Marketing Assistant",
-    icon: <Megaphone className="h-5 w-5" />,
-    avatar: "https://api.dicebear.com/7.x/shapes/svg?seed=marketing",
-    status: "online"
-  },
-  {
-    id: "support",
-    name: "Customer Support Bot",
-    icon: <Headset className="h-5 w-5" />,
-    avatar: "https://api.dicebear.com/7.x/shapes/svg?seed=support",
-    status: "online"
-  },
-  {
-    id: "research",
-    name: "Research Analyst",
-    icon: <FlaskConical className="h-5 w-5" />,
-    avatar: "https://api.dicebear.com/7.x/shapes/svg?seed=research",
-    status: "offline"
-  }
-]
-
-export default function AIAgentChat() {
-  const [selectedAgent, setSelectedAgent] = useState(agents[0])
-  const [messages, setMessages] = useState([
-    {
-      id: "1",
-      sender: "agent",
-      content: "Hello! How can I help you today?",
-      timestamp: "10:30 AM",
-      avatar: agents[0].avatar
-    },
-    {
-      id: "2",
-      sender: "user",
-      content: "I need to create a report on Q3 sales.",
-      timestamp: "10:31 AM",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=john"
-    },
-    {
-      id: "3",
-      sender: "agent",
-      content: "Of course. I can help with that. To get started, I need access to the sales data. Could you please specify the data source?",
-      timestamp: "10:32 AM",
-      avatar: agents[0].avatar
+  // 2. Load Conversation when Agent Changes (Optional/Advanced)
+  // For now, we'll start fresh or you can implement a fetch for history here.
+  useEffect(() => {
+    if (selectedAgent) {
+      setMessages([{
+        role: "agent", 
+        content: `Hello! I am ${selectedAgent.AgentName}. How can I help you?`,
+        time: new Date().toLocaleTimeString()
+      }]);
+      setConversationId(null); // Reset session for new agent
     }
-  ])
-  const [inputMessage, setInputMessage] = useState("")
-  const [activeTab, setActiveTab] = useState("memory")
-  const [showContext, setShowContext] = useState(true)
+  }, [selectedAgent]);
 
-  const contextData = {
-    memory: [
-      { id: "1", content: "User needs a Q3 sales report.", source: "Learned from last message" },
-      { id: "2", content: "User's name is John Doe.", source: "From user profile" },
-      { id: "3", content: "Sales data source is not yet specified.", source: "Inferred from conversation" }
-    ],
-    personality: [
-      { id: "1", content: "Friendly", source: "Core trait" },
-      { id: "2", content: "Helpful", source: "Core trait" },
-      { id: "3", content: "Professional", source: "Core trait" }
-    ],
-    tasks: [
-      { id: "1", content: "Sent email to John Doe", source: "Completed" },
-      { id: "2", content: "Create report on Q3 sales", source: "Pending" }
-    ]
-  }
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isTyping]);
 
-  const handleSendMessage = async () => {
-  if (!inputMessage.trim()) return;
+  // 3. Send Message to Backend
+  const handleSendMessage = async (e) => {
+    e?.preventDefault();
+    if (!input.trim() || !selectedAgent) return;
 
-  const userMessage = {
-    id: Date.now().toString(),
-    sender: "user",
-    content: inputMessage,
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=john"
+    const userText = input;
+    setInput(""); // Clear input immediately
+
+    // Optimistic UI Update (Show user message immediately)
+    const userMsg = {
+      role: "user",
+      content: userText,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setMessages(prev => [...prev, userMsg]);
+    setIsTyping(true);
+
+    try {
+      // API Call
+      // Note: matches backend route: app.post("/conversations/:agentId/chat", ...)
+      const res = await fetch(`/conversations/${selectedAgent.AgentID}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: USER_ID,
+          message: userText,
+          conversationId: conversationId, // Pass ID to maintain context
+          provider: "openai" // or "gemini" / "perplexity"
+        })
+      });
+
+      if (!res.ok) throw new Error("Failed to send message");
+
+      const data = await res.json();
+      
+      // Update Conversation ID so next message continues this thread
+      if (data.conversationId) setConversationId(data.conversationId);
+
+      // Add Agent Reply
+      if (data.reply) {
+        const agentMsg = {
+          role: "agent", // Backend says "assistant", UI expects "agent" or mapped below
+          content: data.reply.content,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, agentMsg]);
+      }
+
+    } catch (error) {
+      console.error("Chat error:", error);
+      setMessages(prev => [...prev, { 
+        role: "agent", 
+        content: "⚠️ Error: Could not connect to the agent. " + error.message,
+        time: new Date().toLocaleTimeString()
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
-
-  // Add user message to UI immediately
-  setMessages(prev => [...prev, userMessage]);
-
-  const messageToSend = inputMessage;
-  setInputMessage("");
-
-  try {
-    // ---- CALL YOUR BACKEND ----
-    const backendReply = await sendMessageToBackend(messageToSend, selectedAgent.id);
-
-    const agentMessage = {
-      id: (Date.now() + 1).toString(),
-      sender: "agent",
-      content: backendReply,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      avatar: selectedAgent.avatar
-    };
-
-    setMessages(prev => [...prev, agentMessage]);
-
-  } catch (err) {
-    console.error("Error contacting backend:", err);
-
-    const errorMessage = {
-      id: (Date.now() + 1).toString(),
-      sender: "agent",
-      content: "⚠️ Error: Could not contact backend.",
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      avatar: selectedAgent.avatar
-    };
-
-    setMessages(prev => [...prev, errorMessage]);
-  }
-};
 
   return (
-    <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-950">
-      {/* Left Sidebar */}
-      <aside className="w-80 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=john" alt="John Doe" />
-              <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-              <h1 className="text-base font-medium leading-normal text-slate-900 dark:text-white">John Doe</h1>
-              <p className="text-sm font-normal leading-normal text-slate-500 dark:text-slate-400">john.doe@example.com</p>
-            </div>
-          </div>
+    <div className="flex h-full bg-white dark:bg-slate-900 rounded-tl-3xl shadow-inner overflow-hidden animate-fade-in">
+      
+      {/* Sidebar: Real Agent List */}
+      <aside className="w-80 border-r border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hidden md:flex flex-col">
+        <div className="p-6">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Your Agents</h2>
         </div>
 
-        <div className="flex-grow p-4 overflow-y-auto">
-          <div className="flex flex-col gap-2">
-            {agents.map((agent) => (
-              <button
-                key={agent.id}
-                onClick={() => setSelectedAgent(agent)}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                  selectedAgent.id === agent.id
-                    ? "bg-blue-500/10 dark:bg-blue-500/20"
-                    : "hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`}
-              >
-                <span className={selectedAgent.id === agent.id ? "text-blue-500" : "text-slate-600 dark:text-slate-400"}>
-                  {agent.icon}
-                </span>
-                <p className={`text-sm font-medium leading-normal ${
-                  selectedAgent.id === agent.id
-                    ? "text-blue-500"
-                    : "text-slate-800 dark:text-slate-300"
-                }`}>
-                  {agent.name}
-                </p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-          <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white">
-            Create new agent
-          </Button>
+        <div className="flex-1 overflow-y-auto px-4 space-y-2">
+          {agents.length === 0 && <p className="text-center text-slate-400 mt-10">No agents found.</p>}
+          
+          {agents.map((agent) => (
+            <button
+              key={agent._id || agent.AgentID}
+              onClick={() => setSelectedAgent(agent)}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 ${
+                selectedAgent?.AgentID === agent.AgentID 
+                  ? "bg-white dark:bg-slate-800 shadow-md ring-1 ring-slate-200 dark:ring-slate-700" 
+                  : "hover:bg-white/60 dark:hover:bg-slate-800/60"
+              }`}
+            >
+              <div className="relative">
+                <Avatar className="w-10 h-10 bg-blue-100 text-blue-600">
+                  <AvatarFallback>{agent.AgentName?.[0] || "A"}</AvatarFallback>
+                </Avatar>
+                {/* Visual Status Indicator */}
+                <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${
+                  (agent.Status || 'active').toLowerCase() === 'active' ? 'bg-green-500' : 'bg-slate-400'
+                }`}></span>
+              </div>
+              <div className="text-left overflow-hidden">
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{agent.AgentName}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{agent.Specialization || "General Assistant"}</p>
+              </div>
+            </button>
+          ))}
         </div>
       </aside>
 
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col">
-        <header className="flex items-center justify-between whitespace-nowrap border-b border-slate-200 dark:border-slate-800 px-6 py-3 bg-white dark:bg-slate-900">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={selectedAgent.avatar || "/placeholder.svg"} alt={selectedAgent.name} />
-                <AvatarFallback>{selectedAgent.name[0]}</AvatarFallback>
-              </Avatar>
-              {selectedAgent.status === "online" && (
-                <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-white dark:border-slate-900"></span>
+      <section className="flex-1 flex flex-col h-full relative">
+        
+        {/* Chat Header */}
+        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-10 h-10 border border-slate-200 dark:border-slate-700">
+              <AvatarFallback>{selectedAgent?.AgentName?.[0] || "?"}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h3 className="font-bold text-slate-800 dark:text-white leading-tight">
+                {selectedAgent ? selectedAgent.AgentName : "Select an Agent"}
+              </h3>
+              {selectedAgent && (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  <span className="text-xs text-slate-500 font-medium">Online</span>
+                </div>
               )}
             </div>
-            <h2 className="text-lg font-bold leading-tight text-slate-900 dark:text-white">{selectedAgent.name}</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="text-slate-500 dark:text-slate-400">
-              <Search className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-slate-500 dark:text-slate-400">
-              <MoreVertical className="h-5 w-5" />
-            </Button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex items-end gap-3 ${
-                message.sender === "user" ? "justify-end ml-auto max-w-xl" : "max-w-xl"
-              }`}
-            >
-              {message.sender === "agent" && (
-                <Avatar className="w-10 h-10 shrink-0">
-                  <AvatarImage src={message.avatar || "/placeholder.svg"} />
-                  <AvatarFallback>AI</AvatarFallback>
-                </Avatar>
-              )}
-              <div className={`flex flex-col gap-1.5 ${message.sender === "user" ? "items-end" : "items-start"}`}>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                    {message.sender === "user" ? "You" : selectedAgent.name}
-                  </p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">{message.timestamp}</p>
+        {/* Messages List */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50 dark:bg-slate-950/50">
+          {messages.map((msg, idx) => {
+            const isUser = msg.role === "user";
+            return (
+              <div key={idx} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+                <div className={`flex gap-3 max-w-[80%] ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+                  
+                  {/* Message Bubble */}
+                  <div className={`group relative p-4 rounded-2xl shadow-sm ${
+                    isUser 
+                      ? "bg-blue-600 text-white rounded-tr-none" 
+                      : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-tl-none"
+                  }`}>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                    <span className={`text-[10px] absolute -bottom-5 ${isUser ? "right-0" : "left-0"} text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity`}>
+                      {msg.time}
+                    </span>
+                  </div>
                 </div>
-                <p className={`text-base font-normal leading-relaxed rounded-xl px-4 py-3 shadow-sm ${
-                  message.sender === "user"
-                    ? "rounded-br-none bg-blue-500 text-white"
-                    : "rounded-bl-none bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
-                }`}>
-                  {message.content}
-                </p>
               </div>
-              {message.sender === "user" && (
-                <Avatar className="w-10 h-10 shrink-0">
-                  <AvatarImage src={message.avatar || "/placeholder.svg"} />
-                  <AvatarFallback>U</AvatarFallback>
-                </Avatar>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Message Input */}
-        <div className="px-6 py-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg">
-              <Input
-                className="flex-1 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                placeholder="Type your message here..."
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-              />
-              <div className="flex items-center gap-1 p-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 dark:text-slate-400">
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 dark:text-slate-400">
-                  <Mic className="h-4 w-4" />
-                </Button>
+            );
+          })}
+          
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl rounded-tl-none flex gap-1 items-center h-12">
+                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></span>
+                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
               </div>
             </div>
-            <Button
-              onClick={handleSendMessage}
-              className="h-12 w-12 shrink-0 bg-blue-500 hover:bg-blue-600 text-white"
-              size="icon"
-            >
-              <Send className="h-5 w-5" />
-            </Button>
-          </div>
+          )}
+          <div ref={messagesEndRef} />
         </div>
-      </main>
 
-      {/* Right Context Panel */}
-      {showContext && (
-        <aside className="w-80 flex-shrink-0 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Context</h3>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowContext(false)}
-                className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex border-b border-slate-200 dark:border-slate-800">
-            {["memory", "personality", "tasks"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-2 text-sm font-medium text-center border-b-2 transition-colors capitalize ${
-                  activeTab === tab
-                    ? "border-blue-500 text-blue-500"
-                    : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-grow p-4 overflow-y-auto">
-            <div className="space-y-4">
-              {contextData[activeTab].map((item) => (
-                <div key={item.id} className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.content}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.source}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
-      )}
+        {/* Input Area */}
+        <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+          <form onSubmit={handleSendMessage} className="flex gap-2 items-end max-w-4xl mx-auto bg-slate-50 dark:bg-slate-800 p-2 rounded-2xl border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-blue-500/50 transition-all">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              placeholder={selectedAgent ? `Message ${selectedAgent.AgentName}...` : "Select an agent to start..."}
+              className="flex-1 max-h-32 min-h-[44px] py-3 px-2 bg-transparent border-none outline-none text-slate-800 dark:text-white placeholder:text-slate-400 resize-none"
+              rows={1}
+              disabled={!selectedAgent}
+            />
+            
+            <button 
+              type="submit"
+              disabled={!input.trim() || !selectedAgent || isTyping}
+              className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-blue-500/20"
+            >
+              <span className="material-symbols-outlined">send</span>
+            </button>
+          </form>
+        </div>
+      </section>
     </div>
-  )
+  );
 }

@@ -1,21 +1,28 @@
-import { createProxyMiddleware } from "http-proxy-middleware";
+  import { createProxyMiddleware } from "http-proxy-middleware";
 
-export default function routes(app) {
-  // Agent Service Routes
-  app.use(
-    "/agents",
-    createProxyMiddleware({
-      target: "http://agent-service:4001",
-      changeOrigin: true
-    })
-  );
+  export default function routes(app) {
+    // 1. Agent Service
+    app.use(
+      "/agents",
+      createProxyMiddleware({
+        // Use env variable OR fallback to the docker service name
+        target: process.env.AGENT_SERVICE || "http://agent-service:4001",
+        changeOrigin: true,
+        pathRewrite: {
+        '^/agents': '',
+        },
+      })
+    );
 
   // Conversation Service Routes
   app.use(
     "/conversations",
     createProxyMiddleware({
       target: "http://conversation-service:4002",
-      changeOrigin: true
+      changeOrigin: true,
+      pathRewrite: {
+        '^/conversations': '', 
+      },
     })
   );
 
@@ -29,11 +36,24 @@ export default function routes(app) {
       },
     })
   );
+
+  app.use(
+  "/api/ai/system",
+  createProxyMiddleware({
+    target: process.env.AI_SERVICE_URL || "http://ai-service:4000",
+    changeOrigin: true,
+    pathRewrite: { '^/api/ai/system': '/generate' },
+  })
+);
+
   app.use(
     "/users",
     createProxyMiddleware({
       target: "http://user-service:4003",
-      changeOrigin: true
+      changeOrigin: true,
+      pathRewrite: {
+        '^/users': '', // Removes '/users' so the service sees '/register'
+      },
     })
   );
   app.use(
