@@ -38,6 +38,7 @@ services:
       MONGO_URI: ${CONVERSATION_DB}  # MongoDB Compass URI from .env
       AI_SERVICE_URL: http://ai-service:4000
       AGENT_SERVICE: http://agent-service:4001
+      RETRIEVAL_SERVICE_URL: http://retrieval-service:4005
     ports:
       - "4002:4002"
     networks:
@@ -76,6 +77,8 @@ services:
       PORT: 4005 
     ports:
       - "4005:4005"
+    networks:
+      - backend
 
   ingestion-service:
     build: ./ingestion-service

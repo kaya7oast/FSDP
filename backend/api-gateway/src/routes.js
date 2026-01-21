@@ -36,6 +36,21 @@ export default function routes(app) {
       changeOrigin: true
     })
   );
+  app.use(
+    "/ingestion",
+    createProxyMiddleware({
+      target: "http://ingestion-service:4006",
+      changeOrigin: true
+    })
+  );
+  app.use(
+    "/retrieval",
+    createProxyMiddleware({
+      target: "http://retrieval-service:4005",
+      changeOrigin: true
+    })
+  );
+
 }
 
 

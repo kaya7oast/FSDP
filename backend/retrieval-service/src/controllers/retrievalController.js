@@ -1,18 +1,29 @@
 import KnowledgeChunk from "../models/KnowledgeChunk.js";
 import axios from "axios";
 
-const retrieveChunks = async (req, res) => {
-  // logic
-};
+
 
 
 
 
 export async function retrieve(req, res) {
-  try {
-    const { query, userId, docId } = req.body;
+  console.log("Retrieval request body:", req.body);
 
-    // 1️⃣ Embed user query
+  try {
+    const { query, userId, docId, docIds } = req.body;
+
+    if (!query || !userId) {
+      return res.status(400).json({ error: "query and userId required" });
+    }
+
+    const effectiveDocIds = Array.isArray(docIds)
+      ? docIds
+      : Array.isArray(docId)
+        ? docId
+        : docId
+          ? [docId]
+          : [];
+
     const embeddingResp = await axios.post(
       "https://api.openai.com/v1/embeddings",
       {
@@ -28,36 +39,40 @@ export async function retrieve(req, res) {
 
     const queryVector = embeddingResp.data.data[0].embedding;
 
-    // 2️⃣ Vector search
+    const filter = { userId: String(userId) };
+
+    if (effectiveDocIds.length > 0) {
+      filter.docId = { $in: effectiveDocIds.map(String) };
+    }
+
     const pipeline = [
       {
         $vectorSearch: {
           index: "vector_index",
           path: "embedding",
           queryVector,
-          numCandidates: 100,
-          limit: 5,
-          filter: {
-            userId,
-            ...(docId && { docId })
-          }
+          numCandidates: 1000,
+          limit: 20,
+          filter
         }
       },
       {
         $project: {
           text: 1,
-          score: { $meta: "vectorSearchScore" },
-          docId: 1
+          docId: 1,
+          score: { $meta: "vectorSearchScore" }
         }
-      }
+      },
+      { $limit: 5 }
     ];
 
     const chunks = await KnowledgeChunk.aggregate(pipeline);
-
     res.json(chunks);
+
   } catch (err) {
-    console.error(err);
+    console.error("Vector retrieval failed:", err);
     res.status(500).json({ error: "Vector retrieval failed" });
   }
 }
+
 

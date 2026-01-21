@@ -55,6 +55,21 @@ export async function uploadFile(req, res) {
       await chunk.save();
       savedChunks.push(chunk);
     }
+    const userChunkCount = await Chunk.countDocuments({ userId });
+  if (userChunkCount > 0) {
+    const fileCount = await Chunk.aggregate([
+      { $match: { userId: String(userId) } },
+      { $group: { _id: "$docId" } },
+      { $count: "total" }
+    ]);
+    
+    if (fileCount[0]?.total > 5) {
+      const oldestDoc = await Chunk.findOne({ userId: String(userId) }).sort({ createdAt: 1 });
+      if (oldestDoc) {
+        await Chunk.deleteMany({ userId: String(userId), docId: oldestDoc.docId });
+      }
+    }
+  }
 
     res.json({
       message: "File processed successfully",
@@ -67,4 +82,53 @@ export async function uploadFile(req, res) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
+}
+
+export async function getUserDocs(req, res) {
+  try {
+    const userId = req.params.userId;
+    if (!userId) {
+      return res.status(400).json({ error: "userId parameter is required" });
+    }
+
+    const docs = await Chunk.aggregate([
+      { $match: { userId: String(userId) } },
+      { $group: {
+          _id: "$docId",
+          docName: { $first: "$docName" },
+          totalChunks: { $sum: 1 }
+        }
+      },
+      { $project: {
+          docId: "$_id",
+          docName: 1,
+          totalChunks: 1,
+          _id: 0
+        }
+      }
+    ]);
+    res.json(docs);
+  }
+  catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+export async function deleteDocument(req, res) {
+  try {
+    const { userId, docId } = req.params;
+    if (!userId || !docId) {
+      return res.status(400).json({ error: "userId and docId parameters are required" });
+    }
+    const result = await Chunk.deleteMany({ userId: String(userId), docId: String(docId) });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    res.json({ message: "Document deleted successfully", deletedCount: result.deletedCount });
+    
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  } 
 }

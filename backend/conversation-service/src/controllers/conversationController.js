@@ -1,8 +1,10 @@
 import axios from "axios";
 import Conversation from "../models/conversationModel.js";
 
+
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL; // e.g., http://ai-service:4000
 const AGENT_SERVICE_URL = process.env.AGENT_SERVICE; // e.g., http://agent-service:4001
+const RETRIEVAL_SERVICE_URL = process.env.RETRIEVAL_SERVICE_URL; // http://retrieval-service:4005
 
 // Helper: fetch agent details from agent-service
 async function getAgentbyId(agentId) {
@@ -61,7 +63,8 @@ export const chatWithAgent = async (req, res) => {
     message, 
     provider = "gemini", 
     chatname,
-    conversationId = null 
+    conversationId = null,
+    docIds =[]
   } = req.body;
 
   try {
@@ -131,9 +134,33 @@ export const chatWithAgent = async (req, res) => {
       createdAt: new Date().toISOString(),
     });
 
-    // Only send last 10 messages to AI
-    const messagesToSend = conversation.messages.slice(-10);
+    let retrievedContext = "";
 
+    if (docIds.length > 0) {
+      retrievedContext = await retrieveContext({
+        userId,
+        docIds,
+        query: message
+      });
+    }
+    
+
+    // Only send last 10 messages to AI
+    const messagesToSend = [
+      { role: "system", content: systemMessage },
+
+      ...(retrievedContext
+        ? [{
+            role: "system",
+            content: `Use the following context to answer the user's question. If the answer is not in the context, say you are unsure.\n\n${retrievedContext} & use online information`
+          }]
+        : []),
+
+      ...conversation.messages
+        .filter(m => m.role !== "system")
+        .slice(-8)
+    ];
+    
     // -----------------------------
     // 4. Get AI response
     // -----------------------------
@@ -244,3 +271,39 @@ export const allConversations = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+async function retrieveContext({ userId, docIds, query }) {
+  console.log("retrieveContext called with:", { userId, docIds, query });
+  try {
+    const resp = await axios.post(
+      `${process.env.RETRIEVAL_SERVICE_URL}/retrieve`,
+      {
+        userId,
+        docIds,
+        query,
+        topK: 5
+      }
+    );
+
+    const chunks = resp.data || [];
+
+    console.log("retrieval raw chunks:", chunks);
+
+    // 🔥 Convert array → text
+    return chunks
+      .map(
+        (c, i) =>
+          `(${i + 1}) [score: ${c.score.toFixed(2)}]\n${c.text}`
+      )
+      .join("\n\n");
+
+  } catch (err) {
+    console.error(
+      "retrieveContext error:",
+      err?.response?.data || err.message
+    );
+    return "";
+  }
+}
+
