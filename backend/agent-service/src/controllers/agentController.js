@@ -117,7 +117,7 @@ export const updateAgent = async (req, res) => {
   try {
     const agent = await Agent.findByIdAndUpdate(req.params.agentId, req.body, { new: true });
     res.json(agent);
-  } catch (err) {
+  } catch (err) { 
     res.status(500).json({ error: err.message });
   }
 };
