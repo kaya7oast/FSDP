@@ -268,7 +268,6 @@ s
     // -----------------------------
     // 4. Get AI response
     // -----------------------------
-    const replyText = await generateAIResponse(provider, messagesToSend);
     // Sub-agent analysis loop
     const internalResults = await Promise.all(
       activeSubAgents.map(async (subAgent) => {
