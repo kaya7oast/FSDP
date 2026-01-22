@@ -124,49 +124,67 @@ const WorkflowSidebar = ({ isOpen, onClose, onLoadTemplate }) => {
       <div className="flex-1 overflow-y-auto p-3 space-y-4 h-[calc(100%-140px)] scrollbar-thin scrollbar-thumb-orange-200">
         
         {activeTab === 'build' ? (
-          // BUILD TAB
-          Object.entries(TRAIT_CATEGORIES).map(([category, items]) => (
-            <div key={category} className="mb-4">
-              <button 
-                onClick={() => toggleCategory(category)}
-                className="w-full flex items-center justify-between text-xs font-bold text-[#8D7F71] uppercase tracking-widest mb-2 px-1 hover:text-orange-500"
+          <>
+            {/* EXISTING CATEGORIES LOOP */}
+            {Object.entries(TRAIT_CATEGORIES).map(([category, items]) => (
+              <div key={category} className="mb-4">
+                <button 
+                  onClick={() => toggleCategory(category)}
+                  className="w-full flex items-center justify-between text-xs font-bold text-[#8D7F71] uppercase tracking-widest mb-2 px-1 hover:text-orange-500"
+                >
+                  {category}
+                  <span className={`material-symbols-outlined text-sm transition-transform ${openCategories.includes(category) ? 'rotate-180' : ''}`}>expand_more</span>
+                </button>
+                
+                {openCategories.includes(category) && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {items.map((item) => (
+                      <DraggableTrait 
+                        key={item.label} 
+                        label={item.label} 
+                        desc={item.desc} 
+                        category={category.split(' ')[0]} 
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* --- NEW: CUSTOM CONTEXT NODE --- */}
+            <div className="mt-6 pt-6 border-t border-[#E0D8C3]">
+              <div className="text-xs font-bold text-[#8D7F71] uppercase tracking-widest mb-2 px-1">
+                Advanced
+              </div>
+              <div 
+                className="p-3 bg-white border border-indigo-200 rounded-xl cursor-grab hover:border-indigo-400 hover:shadow-md transition-all active:scale-95 group"
+                draggable
+                onDragStart={(event) => {
+                  // This manually sets the data, categorizing it as 'Custom'
+                  event.dataTransfer.setData('application/reactflow', 'default'); // Use default shape
+                  event.dataTransfer.setData('application/label', 'Custom Context');
+                  event.dataTransfer.setData('application/desc', 'Add specific rules or backstory.');
+                  event.dataTransfer.setData('application/category', 'Custom'); 
+                  event.dataTransfer.effectAllowed = 'move';
+                }} 
               >
-                {category}
-                <span className={`material-symbols-outlined text-sm transition-transform ${openCategories.includes(category) ? 'rotate-180' : ''}`}>expand_more</span>
-              </button>
-              
-              {openCategories.includes(category) && (
-                <div className="grid grid-cols-2 gap-2">
-                  {items.map((item) => (
-                    <DraggableTrait 
-                      key={item.label} 
-                      label={item.label} 
-                      desc={item.desc} 
-                      category={category.split(' ')[0]} 
-                    />
-                  ))}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="material-symbols-outlined text-indigo-500">extension</span>
+                  <span className="font-bold text-sm text-[#4E342E]">Custom / Other</span>
                 </div>
-              )}
+                <p className="text-[10px] text-[#8D7F71] leading-tight">
+                  Drag in to add unique rules, constraints, or hidden context.
+                </p>
+              </div>
             </div>
-          ))
+            {/* -------------------------------- */}
+          </>
         ) : (
-          // TEMPLATES TAB
+          // TEMPLATES TAB (Keep as is)
           <div className="space-y-2">
-             <TemplateCard 
-                title="🐱 The Coding Buddy" 
-                tags={["Python", "Web Dev", "Code Block"]} 
-                onClick={() => onLoadTemplate('coding')}
-             />
-             <TemplateCard 
-                title="🧶 The Listener" 
-                tags={["Empathetic", "Soft Tone", "Plain Text"]} 
-                onClick={() => onLoadTemplate('therapy')}
-             />
-             <TemplateCard 
-                title="👔 The Professional" 
-                tags={["Formal", "Email Draft", "No Swearing"]} 
-                onClick={() => onLoadTemplate('business')}
-             />
+             <TemplateCard title="🐱 The Coding Buddy" tags={["Python", "Web Dev", "Code Block"]} onClick={() => onLoadTemplate('coding')} />
+             <TemplateCard title="🧶 The Listener" tags={["Empathetic", "Soft Tone", "Plain Text"]} onClick={() => onLoadTemplate('therapy')} />
+             <TemplateCard title="👔 The Professional" tags={["Formal", "Email Draft", "No Swearing"]} onClick={() => onLoadTemplate('business')} />
           </div>
         )}
       </div>

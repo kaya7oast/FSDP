@@ -37,12 +37,13 @@ const AgentBuilder = () => {
 
   const handleSave = async () => {
     try {
-      // 1. SETUP: Variables to hold our extracted visual data
+      // 1. SETUP: Variables
       let visualName = formData.AgentName;
       let visualDesc = formData.Description;
       let visualCapabilities = [];
-      let identityInstructions = []; // Store text from Identity nodes
-      let outputRules = [];          // Store text from Output nodes
+      let identityInstructions = []; 
+      let outputRules = [];          
+      let customInstructions = [];   // <--- NEW: Array for Custom Nodes
 
       // 2. VISUAL EXTRACTION LOOP
       if (workflowData && workflowData.visual && workflowData.visual.nodes) {
@@ -64,26 +65,32 @@ const AgentBuilder = () => {
                 if (edge.target === coreNode.id) connectedNodeIds.add(edge.source);
             });
 
-            // C. Loop through ALL connected nodes to categorize them
+            // C. Loop through ALL connected nodes
             nodes.forEach(n => {
                 if (connectedNodeIds.has(n.id)) {
                     const cat = n.data?.category || '';
                     const label = n.data?.label || '';
                     const content = n.data?.content || '';
 
-                    // -- KNOWLEDGE -> Capabilities --
+                    // -- KNOWLEDGE --
                     if (cat.includes('Knowledge') || cat.includes('Tool') || cat.includes('Capability')) {
                         visualCapabilities.push(label);
                     }
 
-                    // -- IDENTITY -> System Prompt Persona --
+                    // -- IDENTITY --
                     else if (cat.includes('Identity') || cat.includes('Persona') || cat.includes('Role')) {
                         identityInstructions.push(`${label}: ${content}`);
                     }
 
-                    // -- OUTPUT -> System Prompt Formatting --
-                    else if (cat.includes('Output') || cat.includes('Format') || cat.includes('Style') || cat.includes('Mode')) {
+                    // -- OUTPUT --
+                    else if (cat.includes('Output') || cat.includes('Format') || cat.includes('Style')) {
                         outputRules.push(`${label}: ${content}`);
+                    }
+
+                    // -- NEW: CUSTOM / OTHERS --
+                    // If it doesn't match above, we treat it as custom context
+                    else {
+                        customInstructions.push(`[${label}]: ${content}`);
                     }
                 }
             });
@@ -100,6 +107,12 @@ const AgentBuilder = () => {
       if (outputRules.length > 0) {
           finalSystemPrompt += "\n\n### OUTPUT FORMATTING RULES\n" + outputRules.join('\n');
       }
+      
+      // --- NEW: Append Custom Instructions ---
+      if (customInstructions.length > 0) {
+          finalSystemPrompt += "\n\n### ADDITIONAL CONTEXT & RULES\n" + customInstructions.join('\n');
+      }
+      // ---------------------------------------
 
       // 4. VALIDATION
       if (!visualName || visualName.trim() === "" || visualName === "Agent Persona") {
@@ -121,12 +134,12 @@ const AgentBuilder = () => {
           UserID: localStorage.getItem('userId'),
           UserName: localStorage.getItem('username')
         },
-        
-        // 2. FORMAT DATA: Convert string capabilities to an array
-        Capabilities: typeof formData.Capabilities === 'string' 
-          ? formData.Capabilities.split(',').map(item => item.trim()).filter(i => i)
-          : formData.Capabilities,
-
+        Capabilities: finalCapabilities,
+        // Update System Prompt
+        Personality: {
+            ...formData.Personality,
+            SystemPrompt: finalSystemPrompt
+        },
         WorkflowVisual: workflowData
       };
 
@@ -144,7 +157,6 @@ const AgentBuilder = () => {
         navigate('/dashboard');
       } else {
         const err = await response.json();
-        // This will now show you specific Mongoose validation errors if they occur
         alert('Error: ' + (err.error || err.message || 'Failed to save'));
       }
     } catch (error) {
