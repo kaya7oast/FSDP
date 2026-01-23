@@ -23,10 +23,15 @@ app.get("/health", (req, res) => {
 });
 
 // Define local endpoints for this service
-app.post("/users/guest", guestLogin);
-app.post("/users/register", registerUser);
-app.post("/users/login", loginUser);
-app.get("/users/profile", getUserProfile);
+app.post("/guest", guestLogin);
+app.post("/register", registerUser);
+app.post("/login", loginUser);
+app.get("/profile", getUserProfile);
+
+// Test route
+app.get("/test", (req, res) => {
+  res.send("User Service test route is working");
+});
 
 // Connect to MongoDB using the URI from .env
 connectDB();

@@ -101,7 +101,6 @@ const handleFileUpload = async (e) => {
     };
     setMessages(prev => [...prev, userMsg]);
     setIsTyping(true);
-
     try {
       const res = await fetch(`/conversations/${selectedAgent.AgentID}/chat`, {
         method: "POST",

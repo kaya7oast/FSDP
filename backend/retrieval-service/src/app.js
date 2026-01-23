@@ -18,14 +18,14 @@ app.use(express.json({ limit: "1mb" }));
 /* =======================
    Health Check
 ======================= */
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "retrieval-service running" });
+app.get("/test", (req, res) => {
+  res.send("Retrieval service test route is working");
 });
 
 /* =======================
    Retrieval Endpoint
 ======================= */
-app.post("/retrieve", retrieve);
+app.post("/", retrieve);
 
 /* =======================
    MongoDB Connection
