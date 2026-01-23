@@ -10,11 +10,17 @@ services:
       AGENT_SERVICE: http://agent-service:4001
       CONVERSATION_SERVICE: http://conversation-service:4002
       AI_SERVICE_URL: http://ai-service:4000
+      RETRIEVAL_SERVICE: http://retrieval-service:4005
+      INGESTION_SERVICE: http://ingestion-service:4006
+ 
     depends_on:
       - user-service
       - agent-service
       - conversation-service
       - ai-service
+      - retrieval-service
+      - ingestion-service
+      
     networks:
       - backend
 
@@ -85,7 +91,7 @@ services:
 
   ingestion-service:
     build: ./ingestion-service
-    container_name: backend-ingestion-service
+    container_name: ingestion-service
     ports:
       - "4006:4006"
     volumes:
@@ -94,7 +100,9 @@ services:
     environment:
       PORT: 4006
       MONGO_URI: ${INGESTION_DB}  # MongoDB Compass URI from .env
-      EMBEDDING_SERVICE_URL: http://embedding-service:5000
+      EMBEDDING_SERVICE_URL: http://retrieval-service:4005
+    networks:
+      - backend
 networks:
   backend:
     driver: bridge
