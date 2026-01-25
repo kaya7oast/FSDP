@@ -34,9 +34,10 @@ useEffect(() => {
       }
 
       // 2. FETCH DOCUMENTS ON REFRESH - PLACE HERE
-      const docRes = await fetch(`/ingestion/upload/docs/${USER_ID}`); 
+      const docRes = await fetch(`/ingestion/docs/${USER_ID}`); 
       if (docRes.ok) {
         const docData = await docRes.json();
+        console.log("Docs received:", docData);
         setDocuments(Array.isArray(docData) ? docData : []);
       }
     } catch (err) {
@@ -101,8 +102,9 @@ const handleFileUpload = async (e) => {
     };
     setMessages(prev => [...prev, userMsg]);
     setIsTyping(true);
+    console.log("Sending message with docs:", selectedDocIds);
     try {
-      const res = await fetch(`/conversations/${selectedAgent.AgentID}/chat`, {
+      const res = await fetch(`/conversation/${selectedAgent.AgentID}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -174,7 +176,7 @@ const handleFileUpload = async (e) => {
           <div className="max-h-40 overflow-y-auto space-y-1 mb-3 px-2">
             {documents.map((doc) => (
               <div 
-                key={doc.docId} 
+                key={doc.docId} // Ensure this is unique!
                 onClick={() => toggleDocSelection(doc.docId)}
                 className={`flex items-center gap-2 p-2 rounded-lg text-xs cursor-pointer transition-colors ${
                   selectedDocIds.includes(doc.docId) 
@@ -185,7 +187,8 @@ const handleFileUpload = async (e) => {
                 <span className="material-symbols-outlined text-sm">
                   {selectedDocIds.includes(doc.docId) ? "check_circle" : "description"}
                 </span>
-                <span className="truncate flex-1">{doc.docName}</span>
+                {/* Use a fallback to debug if it's still empty */}
+                <span className="truncate flex-1">{doc.docName || "Untitled Document"}</span>
               </div>
             ))}
           </div>
