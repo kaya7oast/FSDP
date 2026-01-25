@@ -23,7 +23,7 @@ createRoot(document.getElementById('root')).render(
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<AgentDashboard />} />
           <Route path="/analytics" element={<AgentAnalytics />} />
-          <Route path="/conversations" element={<AgentConversation />} />
+          <Route path="/chats" element={<AgentConversation />} />
           <Route path="/builder" element={<AgentBuilder />} />
           <Route path="/builder/:agentId" element={<AgentBuilder />} />
         </Route>
