@@ -250,8 +250,12 @@ s
           `[SUB-AGENT] ${subAgent.AgentName} using provider="${chosenProvider}"`
         );
 
-        const subReply = await generateAIResponse(chosenProvider, [
+        const contextMessages = getConversationContext(conversation, 6);
+
+        const subReply = await generateAIResponse(chosenProvider, [ 
           { role: "system", content: subPrompt },
+          ...contextMessages,
+          { role: "user", content: message },
         ]);
 
         conversation.messages.push({
@@ -275,21 +279,18 @@ s
       activeSubAgents
     );
 
+    const contextMessages = getConversationContext(conversation, 12);
+
     const supervisorMessages = [
-      {
-        role: "system",
-        content: supervisorPrompt,
-      },
-      {
-        role: "user",
-        content: message,
-      },
+      { role: "system", content: supervisorPrompt },
+      ...contextMessages,
       {
         role: "system",
         content: `INTERNAL ANALYSES (do not expose):\n\n${internalResults
           .map(r => `${r.name}:\n${r.reply}`)
           .join("\n\n")}`,
       },
+      { role: "user", content: message },
     ];
 
     const supervisorProvider = await routeLLM({
@@ -313,6 +314,33 @@ s
     };
 
     conversation.messages.push(reply);
+    if (conversation.messages.length > 20) {
+      const summary = await generateAIResponse("openai", [
+    {
+      role: "system",
+      content: "Summarize the following conversation for long-term memory. Capture goals, decisions, and important context."
+    },
+    ...conversation.messages
+      .filter(m => m.visibility === "user")
+      .map(m => ({
+        role: m.role,
+        content: m.content
+      }))
+    ]);
+
+    conversation.latestSummary = summary;
+
+  // prepend summary as system memory
+    conversation.messages.unshift({
+      role: "system",
+        content: `CONVERSATION SUMMARY:\n${summary}`,
+        visibility: "user",
+        createdAt: new Date().toISOString()
+      });
+
+      // keep token window small
+      conversation.messages = conversation.messages.slice(0, 25);
+    }
     await conversation.save();
 
     res.json({ 
@@ -472,6 +500,12 @@ PERSONALITY GUIDELINES:
 - Style: ${p.LanguageStyle || "concise"}
 - Attitude: ${p.Emotion || "neutral"}
 
+CONVERSATION CONTINUITY:
+- Remember prior user preferences
+- Do not repeat explanations unnecessarily
+- Refer naturally to earlier points when relevant
+- Ask clarifying questions only when neededS
+
 FINAL OUTPUT REQUIREMENTS:
 - Provide a single, coherent response
 - Be decisive and authoritative
@@ -511,4 +545,16 @@ return decision
   .split(",")
   .map(id => id.trim().replace(/['"`]|ID:\s*/g, "")) 
   .filter(Boolean);
+}
+
+function getConversationContext(conversation, limit = 12) {
+  if (!conversation || !conversation.messages) return [];
+
+  return conversation.messages
+    .filter(m => m.visibility === "user") // only user-visible context
+    .slice(-limit)
+    .map(m => ({
+      role: m.role,
+      content: m.content,
+    }));
 }
