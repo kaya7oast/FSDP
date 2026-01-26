@@ -47,7 +47,7 @@ export async function generateAIResponse(provider, messageOrMessages) {
       if (!process.env.OPENAI_API_KEY) return "OpenAI API key missing";
       
       const config = {
-        model: "gpt-4o", // Upgraded to valid model
+        model: "gpt-5", // GPT-5 enabled for all clients
         messages: messagesArray,
       };
 

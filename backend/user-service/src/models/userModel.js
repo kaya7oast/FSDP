@@ -20,7 +20,8 @@ const userSchema = new mongoose.Schema({
   
   password: {
     type: String,
-    select: false // Password won't be sent in GET requests automatically
+    required: true,
+    // select: false // Password won't be sent in GET requests automatically
   },
 
   role: {

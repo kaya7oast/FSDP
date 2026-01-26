@@ -1,28 +1,35 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  appType: 'spa',
   server: {
+    // historyApiFallback: true,
     proxy: {
-      // Proxy agent requests
       '/agents': {
         target: 'http://127.0.0.1:3000',
-        changeOrigin: true,
-        secure: false,
+        changeOrigin: true
       },
-      // Proxy conversation requests
-      '/conversations': {
+      '/conversation': {
         target: 'http://127.0.0.1:3000',
-        changeOrigin: true,
-        secure: false,
+        changeOrigin: true
       },
-      // FIX: Match the "/api" prefix used by the voice assistant
-      '/api': {
+      '/ingestion': {
         target: 'http://127.0.0.1:3000',
-        changeOrigin: true,
-        secure: false,
+        changeOrigin: true
+      },
+      '/retrieval': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true
+      },
+      '/ai': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true
+      },
+      '/users': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true
       }
     }
   }
