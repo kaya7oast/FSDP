@@ -48,6 +48,53 @@ useEffect(() => {
   fetchInitialData();
 }, []);
 
+useEffect(() => {
+  if (!selectedAgent) return;
+
+  const loadConversationHistory = async () => {
+    // 1. Reset UI state for the new agent
+    setMessages([]); 
+    setConversationId(null);
+    setSelectedDocIds([]); // Clear selected docs (moved here from your old handler)
+
+    try {
+      // 2. Fetch conversations for this user
+      const res = await fetch(`/conversations/user/${USER_ID}`);
+      
+      if (res.ok) {
+        const conversations = await res.json();
+        
+        // 3. Find the active conversation for this specific agent
+        // Handle both ID types just in case
+        const activeAgentId = selectedAgent.AgentID || selectedAgent._id;
+        
+        const match = conversations.find(
+          c => c.agentId === activeAgentId && c.status === "active"
+        );
+
+        if (match) {
+          setConversationId(match.conversationId);
+          
+          // 4. Format messages for the UI
+          const formattedMessages = match.messages
+            .filter(m => m.visibility === "user")
+            .map(m => ({
+              role: m.role === "assistant" ? "agent" : m.role,
+              content: m.content,
+              time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }));
+
+          setMessages(formattedMessages);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load conversation history:", err);
+    }
+  };
+
+  loadConversationHistory();
+}, [selectedAgent]);
+
   // 2. Handle Agent Selection - Reset conversation and messages
   const handleAgentSelection = (agent) => {
     setSelectedAgent(agent);
