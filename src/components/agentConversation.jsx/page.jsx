@@ -48,7 +48,62 @@ useEffect(() => {
   fetchInitialData();
 }, []);
 
-  // 2. Document Selection Toggle
+useEffect(() => {
+  if (!selectedAgent) return;
+
+  const loadConversationHistory = async () => {
+    // 1. Reset UI state for the new agent
+    setMessages([]); 
+    setConversationId(null);
+    setSelectedDocIds([]); // Clear selected docs (moved here from your old handler)
+
+    try {
+      // 2. Fetch conversations for this user
+      const res = await fetch(`/conversations/user/${USER_ID}`);
+      
+      if (res.ok) {
+        const conversations = await res.json();
+        
+        // 3. Find the active conversation for this specific agent
+        // Handle both ID types just in case
+        const activeAgentId = selectedAgent.AgentID || selectedAgent._id;
+        
+        const match = conversations.find(
+          c => c.agentId === activeAgentId && c.status === "active"
+        );
+
+        if (match) {
+          setConversationId(match.conversationId);
+          
+          // 4. Format messages for the UI
+          const formattedMessages = match.messages
+            .filter(m => m.visibility === "user")
+            .map(m => ({
+              role: m.role === "assistant" ? "agent" : m.role,
+              content: m.content,
+              time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }));
+
+          setMessages(formattedMessages);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load conversation history:", err);
+    }
+  };
+
+  loadConversationHistory();
+}, [selectedAgent]);
+
+  // 2. Handle Agent Selection - Reset conversation and messages
+  const handleAgentSelection = (agent) => {
+    setSelectedAgent(agent);
+    setMessages([]); // Clear messages when switching agents
+    setConversationId(null); // Reset conversation ID for new agent
+    setSelectedDocIds([]); // Clear selected docs
+  };
+
+  // 3. Document Selection Toggle
   const toggleDocSelection = (docId) => {
     setSelectedDocIds(prev => 
       prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
@@ -103,8 +158,10 @@ const handleFileUpload = async (e) => {
     setMessages(prev => [...prev, userMsg]);
     setIsTyping(true);
     console.log("Sending message with docs:", selectedDocIds);
+    console.log ("Current conversationId:", conversationId);
+    console.log ("To agent:", selectedAgent.AgentID);
     try {
-      const res = await fetch(`/conversation/${selectedAgent.AgentID}/chat`, {
+      const res = await fetch(`/conversations/${selectedAgent.AgentID}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -116,13 +173,21 @@ const handleFileUpload = async (e) => {
         })
       });
 
-      if (!res.ok) throw new Error("Failed to send message");
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("API Error:", res.status, errorData);
+        throw new Error(`Failed to send message: ${res.status} - ${errorData.error || errorData.message}`);
+      }
       const data = await res.json();
+      console.log("Response from server:", data);
       
-      if (data.conversationId) setConversationId(data.conversationId);
+      if (data.conversationId) {
+        console.log("Setting conversation ID:", data.conversationId);
+        setConversationId(data.conversationId);
+      }
       if (data.reply) {
         setMessages(prev => [...prev, {
-          role: "agent",
+          role: "assistant",
           content: data.reply.content,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }]);
@@ -152,7 +217,7 @@ const handleFileUpload = async (e) => {
           {agents.map((agent) => (
             <button
               key={agent.AgentID}
-              onClick={() => setSelectedAgent(agent)}
+              onClick={() => handleAgentSelection(agent)}
               className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
                 selectedAgent?.AgentID === agent.AgentID 
                   ? "bg-white dark:bg-slate-800 shadow-md ring-1 ring-slate-200" 
@@ -262,5 +327,5 @@ const handleFileUpload = async (e) => {
         </div>
       </section>
     </div>
-  );s
+  );
 }

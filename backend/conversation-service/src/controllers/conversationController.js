@@ -10,8 +10,8 @@ const RETRIEVAL_SERVICE_URL = process.env.RETRIEVAL_SERVICE_URL; // http://retri
 async function getAgentbyId(agentId) {
   if (!AGENT_SERVICE_URL) return null;
   try {
-    const resp = await axios.get(`${AGENT_SERVICE_URL}/agents/${agentId}`);
-    return resp.data; // Expected: { agent: { ... } }
+    const resp = await axios.get(`${AGENT_SERVICE_URL}/${agentId}`);
+    return resp.data.agent; // Expected: { agent: { ... } }
   } catch (err) {
     console.error(`Error fetching agent ${agentId}:`, err.message);
     return null;
@@ -111,7 +111,6 @@ function generateConversationId(userId, agentID) {
 }
 
 // Chat with agent
-// Chat with agent
 export const chatWithAgent = async (req, res) => {
   const { agentId } = req.params;
   const { 
@@ -124,18 +123,14 @@ export const chatWithAgent = async (req, res) => {
   } = req.body;
 
   try {
-    const agentResponse = await getAgentbyId(agentId);
-    
-    // SAFETY CHECK 1
-    if (!agentResponse || !agentResponse.agent) {
-      console.error("Agent not found in Agent Service");
-      return res.status(404).json({ error: "Agent not found" });
-    }
+    const supervisor = await getAgentbyId(agentId);
 
-    const supervisor = agentResponse.agent;
-
+  if (!supervisor) {
+    console.error("Agent not found in Agent Service");
+    return res.status(404).json({ error: "Agent not found" });
+  }
     // 🗂 Load ALL agents as a catalog (excluding supervisor)
-    const allAgentsResp = await axios.get(`${AGENT_SERVICE_URL}/agents`);
+    const allAgentsResp = await axios.get(`${AGENT_SERVICE_URL}/`);
 
     // 🛠️ FIX: Handle if API returns raw array OR object wrapper
     const rawAgents = Array.isArray(allAgentsResp.data) 
@@ -396,6 +391,7 @@ s
 // Get conversation
 export const getConversation = async (req, res) => {
   const { conversationId } = req.params;
+  console.log("getConversation called with ID:", conversationId);
   try {
     const conversation = await Conversation.findOne({ conversationId });
     if (!conversation) return res.status(404).json({ error: "Conversation not found" });

@@ -7,10 +7,10 @@
     pathRewrite: { "^/agents": "" }
   }));
 
-  app.use("/conversation", createProxyMiddleware({
+  app.use("/conversations", createProxyMiddleware({
     target: process.env.CONVERSATION_SERVICE || "http://conversation-service:4002",
     changeOrigin: true,
-    pathRewrite: { "^/conversation": "" }
+    pathRewrite: { "^/conversations": "" }
   }));
 
   app.use("/ai", createProxyMiddleware({
