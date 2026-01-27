@@ -44,7 +44,6 @@ USER MESSAGE:
 Available providers:
 - openai → best for coding, logic, debugging
 - gemini → best for deep reasoning, explanations
-- perplexity → best for writing, tone, creativity
 - deepseek → best for factual lookup, search-heavy tasks
 
 RULES:
@@ -53,7 +52,7 @@ RULES:
 - Return ONLY one word
 
 Answer with exactly one of:
-openai | gemini | perplexity | deepseek
+openai | gemini | deepseek
 `;
 
   try {
@@ -63,7 +62,7 @@ openai | gemini | perplexity | deepseek
 
     const provider = decision.trim().toLowerCase();
 
-    if (["openai", "gemini", "perplexity", "deepseek"].includes(provider)) {
+    if (["openai", "gemini", "deepseek"].includes(provider)) {
       console.log(
     `[LLM ROUTER] agent="${agent.AgentName}" phase="${phase}" → provider="${provider}"`
   ); //remove when done
@@ -78,7 +77,7 @@ openai | gemini | perplexity | deepseek
 
 
 // Helper: call AI service to generate a response
-async function generateAIResponse(provider , messages = []) {
+async function generateAIResponse(provider, messages = []) {
   if (!AI_SERVICE_URL) {
     throw new Error("AI_SERVICE_URL not configured");
   }
@@ -89,15 +88,20 @@ async function generateAIResponse(provider , messages = []) {
       messages,
     });
 
-    // ai-service returns { response: '...' } (or similar). Try common shapes.
+    let rawOutput = "";
+
+    // 1. Extract the raw string from your AI Service response structure
     if (resp.data) {
-      if (typeof resp.data.response === "string") return resp.data.response;
-      if (typeof resp.data.reply === "string") return resp.data.reply;
-      // fallback: stringify useful parts
-      return JSON.stringify(resp.data);
+      if (typeof resp.data.response === "string") rawOutput = resp.data.response;
+      else if (typeof resp.data.reply === "string") rawOutput = resp.data.reply;
+      else if (typeof resp.data.content === "string") rawOutput = resp.data.content;
+      else rawOutput = JSON.stringify(resp.data);
     }
 
-    return "";
+    // 2. CLEAN it using the helper
+    // This removes {"final_response": "..."} wrappers
+    return cleanLLMResponse(rawOutput);
+
   } catch (err) {
     console.error("generateAIResponse error:", err?.response?.data || err.message || err);
     throw err;
@@ -137,8 +141,10 @@ export const chatWithAgent = async (req, res) => {
       ? allAgentsResp.data 
       : (allAgentsResp.data.agents || []);
 
+    // Compare agent IDs as strings to handle format differences
+    const supervisorIdStr = String(supervisor._id || supervisor.AgentID);
     const agentCatalog = rawAgents.filter(
-      a => String(a._id) !== String(supervisor._id)
+      a => String(a._id || a.AgentID) !== supervisorIdStr
     );
 
     // 🧠 Supervisor selects relevant sub-agents dynamically
@@ -342,37 +348,17 @@ s
     };
 
     conversation.messages.push(reply);
-    if (conversation.messages.length > 20) {
-      const summary = await generateAIResponse("openai", [
-    {
-      role: "system",
-      content: "Summarize the following conversation for long-term memory. Capture goals, decisions, and important context."
-    },
-    ...conversation.messages
-      .filter(m => m.visibility === "user")
-      .map(m => ({
-        role: m.role,
-        content: m.content
-      }))
-    ]);
-
-    conversation.latestSummary = summary;
-
-  // prepend summary as system memory
-    conversation.messages.unshift({
-      role: "system",
-        content: `CONVERSATION SUMMARY:\n${summary}`,
-        visibility: "user",
-        createdAt: new Date().toISOString()
-      });
-
-      // keep token window small
-      conversation.messages = conversation.messages.slice(0, 25);
-    }
+    
+    // Save conversation
     await conversation.save();
 
+    // Return only user-visible content to the client
     res.json({ 
-      reply, 
+      reply: {
+        role: "assistant",
+        content: replyText,
+        visibility: "user"
+      },
       conversationId: conversation.conversationId 
     });
     
@@ -396,7 +382,16 @@ export const getConversation = async (req, res) => {
     const conversation = await Conversation.findOne({ conversationId });
     if (!conversation) return res.status(404).json({ error: "Conversation not found" });
     if (conversation.status === "deleted") return res.status(410).json({ error: "Conversation deleted" });
-    res.json(conversation);
+    
+    // Filter out system prompts and internal messages before sending to client
+    const filteredConversation = {
+      ...conversation.toObject(),
+      messages: conversation.messages.filter(m => 
+        m.role !== "system" && m.visibility === "user"
+      )
+    };
+    
+    res.json(filteredConversation);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -407,7 +402,16 @@ export const getAllConversations = async (req, res) => {
   const { userId } = req.params;
   try {
     const conversations = await Conversation.find({ userId, status: "active" });
-    res.json(conversations);
+    
+    // Filter out system prompts and internal messages before sending to client
+    const filteredConversations = conversations.map(conv => ({
+      ...conv.toObject(),
+      messages: conv.messages.filter(m => 
+        m.role !== "system" && m.visibility === "user"
+      )
+    }));
+    
+    res.json(filteredConversations);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -621,4 +625,24 @@ function getConversationContext(conversation, limit = 12) {
       role: m.role,
       content: m.content,
     }));
+}
+
+// --- NEW HELPER: Cleans AI output to ensure plain text ---
+function cleanLLMResponse(responseText) {
+  if (!responseText) return "";
+  if (typeof responseText !== "string") return JSON.stringify(responseText);
+
+  // 1. Remove Markdown code blocks (e.g. ```json ... ```)
+  let cleanText = responseText.replace(/```json\n?|\n?```/g, "").trim();
+  cleanText = cleanText.replace(/```\n?|\n?```/g, "").trim();
+
+  if (cleanText.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(cleanText);
+      return parsed.final_response || parsed.reply || parsed.content || parsed.message || parsed.answer || cleanText;
+    } catch (e) {
+      return cleanText;
+    }
+  }
+  return cleanText;
 }
