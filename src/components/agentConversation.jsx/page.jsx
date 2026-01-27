@@ -172,7 +172,7 @@ const agentId = String(selectedAgent.AgentID || selectedAgent._id);
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: USER_ID,
-          message: userText,
+          message: VISUAL_PROTOCOL_PROMPT + "\n\n" + userText,
           conversationId: conversationId,
           chatname: `Chat with ${selectedAgent.AgentName}`,
             docIds: selectedDocIds, // Pass selected docs for retrieval
@@ -321,7 +321,7 @@ const agentId = String(selectedAgent.AgentID || selectedAgent._id);
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={selectedAgent ? `Message ${selectedAgent.AgentName}...` : "Select an agent..."}
-                className="flex-1 max-h-32 min-h-[44px] py-3 px-2 bg-transparent border-none outline-none text-slate-800 dark:text-white text-sm resize-none"
+                className="flex-1 max-h-32 min-h-11 py-3 px-2 bg-transparent border-none outline-none text-slate-800 dark:text-white text-sm resize-none"
                 rows={1}
                 disabled={!selectedAgent}
               />
