@@ -1,8 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Avatar, AvatarFallback } from "./avatar";
+import MessageRenderer from './MessageRenderer';
+
+const VISUAL_PROTOCOL_PROMPT = `
+[SYSTEM: VISUAL RENDERING ENABLED]
+To render UI widgets, output JSON wrapped in triple pipes |||.
+1. STATS: ||| {"type": "stat", "title": "Label", "value": "123", "status": "active"} |||
+2. ALERTS: ||| {"type": "alert", "type": "info", "message": "Notice text"} |||
+3. CODE: ||| {"type": "code", "lang": "js", "code": "console.log(1)"} |||
+Mix these naturally with text.
+`;
 
 // Hardcoded user ID to match ingestion and conversation service defaults
-const USER_ID = "U002"; 
+const USER_ID = "U001";
 
 export default function AgentConversation() {
   const [agents, setAgents] = useState([]);
@@ -34,7 +44,7 @@ useEffect(() => {
       }
 
       // 2. FETCH DOCUMENTS ON REFRESH - PLACE HERE
-      const docRes = await fetch(`/ingestion/docs/${USER_ID}`); 
+      const docRes = await fetch(`/ingestion/docs/${USER_ID}`);
       if (docRes.ok) {
         const docData = await docRes.json();
         console.log("Docs received:", docData);
@@ -166,10 +176,16 @@ const handleFileUpload = async (e) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: USER_ID,
-          message: userText,
-          conversationId: conversationId,
           docIds: selectedDocIds, // Pass selected docs for retrieval
-          provider: "openai"
+          // --- CHANGE STARTS HERE ---
+          // If it's the first message, inject the protocol invisibly
+          message: messages.length === 0 
+             ? VISUAL_PROTOCOL_PROMPT + "\n\n" + userText 
+             : userText,
+          // --- CHANGE ENDS HERE ---
+             
+          conversationId: conversationId, 
+          provider: "openai" 
         })
       });
 
@@ -290,7 +306,7 @@ const handleFileUpload = async (e) => {
                   ? "bg-blue-600 text-white rounded-tr-none" 
                   : "bg-white dark:bg-slate-800 border dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-tl-none"
               }`}>
-                {msg.content}
+                <MessageRenderer content={msg.content} />
               </div>
             </div>
           ))}
@@ -312,7 +328,7 @@ const handleFileUpload = async (e) => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={selectedAgent ? `Message ${selectedAgent.AgentName}...` : "Select an agent..."}
-              className="flex-1 max-h-32 min-h-[44px] py-3 px-2 bg-transparent border-none outline-none text-slate-800 dark:text-white text-sm resize-none"
+              className="flex-1 max-h-32 min-h-11 py-3 px-2 bg-transparent border-none outline-none text-slate-800 dark:text-white text-sm resize-none"
               rows={1}
               disabled={!selectedAgent}
             />
