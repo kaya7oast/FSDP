@@ -17,62 +17,26 @@ async function getAgentbyId(agentId) {
     return null;
   }
 }
+
+
 //choose the correct AI providers
-async function routeLLM({ agent, userMessage, phase = "analysis" }) {
-  const routerProvider = "openai";
+function routeLLM({ agent, phase = "analysis" }) {
+  // 1. If synthesis phase (final user response), prefer Gemini for speed/smoothness
+  // or OpenAI for reliability. 
+  if (phase === "synthesis") return "gemini";
 
-  const routingPrompt = `
-You are an LLM routing controller.
-
-Your job is to choose the BEST language model provider
-for the CURRENT agent and task phase.
-
-PHASE:
-${phase}
-(analysis = internal reasoning, research, critique)
-(synthesis = final user-facing response)
-
-AGENT ROLE:
-${agent.Specialization}
-
-AGENT MISSION:
-${agent.Description}
-
-USER MESSAGE:
-"${userMessage}"
-
-Available providers:
-- openai → best for coding, logic, debugging
-- gemini → best for deep reasoning, explanations
-- deepseek → best for factual lookup, search-heavy tasks
-
-RULES:
-- Choose ONLY ONE provider
-- Prefer DIFFERENT providers across agents when appropriate
-- Return ONLY one word
-
-Answer with exactly one of:
-openai | gemini | deepseek
-`;
-
-  try {
-    const decision = await generateAIResponse(routerProvider, [
-      { role: "system", content: routingPrompt },
-    ]);
-
-    const provider = decision.trim().toLowerCase();
-
-    if (["openai", "gemini", "deepseek"].includes(provider)) {
-      console.log(
-    `[LLM ROUTER] agent="${agent.AgentName}" phase="${phase}" → provider="${provider}"`
-  ); //remove when done
-      return provider;
-    }
-  } catch (e) {
-    console.warn("LLM routing failed, fallback used:", e.message);
+  const spec = (agent.Specialization || "").toLowerCase();
+  
+  // 2. Logic-based routing
+  if (spec.includes("code") || spec.includes("developer") || spec.includes("debug")) {
+    return "openai"; // GPT-4 is usually best for code
   }
-
-  return agent?.LLMProvider || "openai";
+  if (spec.includes("search") || spec.includes("fact") || spec.includes("news")) {
+    return "deepseek"; // or whoever is your search specialist
+  }
+  
+  // 3. Fallback to Agent's default or global default
+  return agent.LLMProvider || "openai";
 }
 
 
@@ -127,21 +91,25 @@ export const chatWithAgent = async (req, res) => {
   } = req.body;
 
   try {
-    const supervisor = await getAgentbyId(agentId);
+    const [supervisor, allAgentsResp, retrievedContext] = await Promise.all([
+      getAgentbyId(agentId),
+      axios.get(`${AGENT_SERVICE_URL}/`).catch(e => ({ data: [] })), 
+      docIds.length > 0 
+        ? retrieveContext({ userId, docIds, query: message }) 
+        : Promise.resolve("")
+    ]);
 
-  if (!supervisor) {
-    console.error("Agent not found in Agent Service");
-    return res.status(404).json({ error: "Agent not found" });
-  }
-    // 🗂 Load ALL agents as a catalog (excluding supervisor)
-    const allAgentsResp = await axios.get(`${AGENT_SERVICE_URL}/`);
+    // Validation checks happen AFTER data arrives
+    if (!supervisor) {
+      console.error("Agent not found in Agent Service");
+      return res.status(404).json({ error: "Agent not found" });
+    }
 
-    // 🛠️ FIX: Handle if API returns raw array OR object wrapper
+    // Process Agent Catalog
     const rawAgents = Array.isArray(allAgentsResp.data) 
       ? allAgentsResp.data 
       : (allAgentsResp.data.agents || []);
 
-    // Compare agent IDs as strings to handle format differences
     const supervisorIdStr = String(supervisor._id || supervisor.AgentID);
     const agentCatalog = rawAgents.filter(
       a => String(a._id || a.AgentID) !== supervisorIdStr
@@ -158,7 +126,35 @@ export const chatWithAgent = async (req, res) => {
     const activeSubAgents = agentCatalog.filter(agent =>
       selectedAgentIds.includes(String(agent._id))
     );
+    if (activeSubAgents.length === 0) {
+      console.log("[OPTIMIZATION] Short-circuiting: Supervisor handling directly.");
+      const directMessages = [
+        { role: "system", content: systemMessage },
+        ...(retrievedContext ? [{ role: "system", content: `CONTEXT:\n${retrievedContext}` }] : []),
+        ...conversation.messages.filter(m => m.role !== "system").slice(-8)
+      ];
 
+      // Fast route check (logic-based)
+      const directProvider = routeLLM({ agent: supervisor, phase: "synthesis" });
+      
+      const directReply = await generateAIResponse(directProvider, directMessages);
+
+      const replyObj = {
+        role: "assistant",
+        agentId: supervisor._id,
+        content: directReply,
+        visibility: "user",
+        createdAt: new Date().toISOString(),
+      };
+
+      conversation.messages.push(replyObj);
+      await conversation.save();
+
+      return res.json({ 
+        reply: replyObj,
+        conversationId: conversation.conversationId 
+      });
+    }
     if (activeSubAgents.length === 0) {
       console.warn(
         "[AGENT ROUTER] No agents selected — supervisor handling alone"
@@ -238,18 +234,7 @@ s
       visibility: "user",
       createdAt: new Date().toISOString(),
     });
-
-    let retrievedContext = "";
-
-    if (docIds.length > 0) {
-      retrievedContext = await retrieveContext({
-        userId,
-        docIds,
-        query: message
-      });
-    }
     
-
     // Only send last 10 messages to AI
     const messagesToSend = [
       { role: "system", content: systemMessage },
@@ -275,11 +260,7 @@ s
 
         const subPrompt = buildAgentSystemPrompt(subAgent, message);
 
-        const chosenProvider = await routeLLM({
-          agent: subAgent,
-          userMessage: message,
-        });
-
+        const chosenProvider = routeLLM({ agent: subAgent });
         console.log(
           `[SUB-AGENT] ${subAgent.AgentName} using provider="${chosenProvider}"`
         );
@@ -327,12 +308,8 @@ s
       { role: "user", content: message },
     ];
 
-    const supervisorProvider = await routeLLM({
-      agent: supervisor,
-      userMessage: message,
-      phase: "synthesis",
-    });
-
+    const supervisorProvider = routeLLM({ agent: supervisor, phase: "synthesis" });
+    
     console.log(
       `[SUPERVISOR] ${supervisor.AgentName} using provider="${supervisorProvider}"`
     );
