@@ -20,8 +20,8 @@ const Login = () => {
   setError('');
 
   const apiBase = import.meta.env.VITE_API_BASE_USERS;
-  // Fallback to absolute path if Vite environment fails
-  const fetchUrl = apiBase ? `${apiBase}/login` : "http://localhost:4003/users/login";
+
+  const fetchUrl = apiBase ? `${apiBase}/login` : "http://localhost:3000/users/login";
 
   try {
     const response = await fetch(fetchUrl, {
