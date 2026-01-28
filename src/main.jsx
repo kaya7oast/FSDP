@@ -15,8 +15,12 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
-        {/* 1. The Entry Point: first page */}
-       <Route path="/" element={<AgentDashboard />} />
+        {/* 1. The Entry Point: Now points to the Login Page */}
+        <Route path="/" element={<LoginPage />} />
+        
+        {/* Added route for Signup */}
+        <Route path="/signup" element={<SignupPage />} />
+
         {/* 2. Authenticated Routes: Wrapped in the Layout component */}
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<AgentDashboard />} />
@@ -27,7 +31,7 @@ createRoot(document.getElementById('root')).render(
         </Route>
 
         {/* 3. The Safety Net: Redirects any undefined URLs back to Login */}
-        
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>
