@@ -573,23 +573,30 @@ Specialization: ${a.Specialization}
 Description: ${a.Description}`
 ).join("\n\n")}
 
-RULES:
-- Select ONLY agents relevant to the request
-- Choose 1–3 agents max
-- Return ONLY agent IDs
-- Comma-separated
-- No explanation
+CRITICAL SELECTION RULES:
+1. **MULTI-AGENT COLLABORATION IS REQUIRED**: You MUST select at least 2 agents to ensure diverse perspectives and error checking.
+2. **Strategy**:
+   - Pick a PRIMARY specialist to handle the main task.
+   - Pick a SECONDARY specialist to provide context, review, alternative viewpoints, or fact-checking.
+   - Example: For code, pick "Developer" AND "Security" or "Quality Assurance".
+   - Example: For writing, pick "Writer" AND "Editor" or "Fact Checker".
+
+OUTPUT RULES:
+- Return ONLY agent IDs.
+- Comma-separated (e.g., ID1, ID2).
+- Do NOT provide explanations.
+- Select between 2 and 4 agents.
 `;
 
-  const decision = await generateAIResponse("openai", [
-  { role: "system", content: prompt },
-]);
+  const decision = await generateAIResponse("openai", [ // Use a smart model (GPT-4) for routing
+    { role: "system", content: prompt },
+  ]);
 
-// Clean the response: remove quotes, backticks, or "ID:" prefixes if the LLM hallucinated them
-return decision
-  .split(",")
-  .map(id => id.trim().replace(/['"`]|ID:\s*/g, "")) 
-  .filter(Boolean);
+  // Clean the response
+  return decision
+    .split(",")
+    .map(id => id.trim().replace(/['"`]|ID:\s*/g, "")) 
+    .filter(Boolean);
 }
 
 function getConversationContext(conversation, limit = 12) {

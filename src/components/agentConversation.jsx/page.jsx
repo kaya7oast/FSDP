@@ -1,8 +1,44 @@
-  import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
   import { Avatar, AvatarFallback } from "./avatar";
+  import { MarkdownMessage } from "./MarkdownMessage";
 
   // Hardcoded user ID to match ingestion and conversation service defaults
   const USER_ID = "U002"; 
+  
+  const parseBotResponse = (rawContent) => {
+  if (typeof rawContent !== 'string') return rawContent;
+
+  let cleaned = rawContent.trim();
+
+  // 1. Remove markdown code blocks if the bot wrapped the JSON in them
+  if (cleaned.includes('```')) {
+    cleaned = cleaned.replace(/```json/g, '').replace(/```/g, '').trim();
+  }
+
+  // 2. Attempt to parse JSON
+  try {
+    // Find the actual JSON object start and end (ignores prefix/suffix text)
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      const jsonCandidate = cleaned.substring(firstBrace, lastBrace + 1);
+      const parsed = JSON.parse(jsonCandidate);
+      
+      // SUCCESS: We found the 'final_response' key!
+      if (parsed.final_response) {
+        return parsed.final_response;
+      }
+    }
+  } catch (e) {
+    // If parsing fails, it's likely just a normal text message
+    console.log("Not JSON, treating as plain text");
+  }
+
+  // Fallback: If no JSON or no 'final_response' key, return original
+  return cleaned;
+};
+
 
   export default function AgentConversation() {
     const [agents, setAgents] = useState([]);
@@ -179,7 +215,6 @@ const agentId = String(selectedAgent.AgentID || selectedAgent._id);
             provider: "openai"
           })
         });
-
         if (!res.ok) {
           const errorData = await res.json();
           console.error("API Error:", res.status, errorData);
@@ -187,20 +222,21 @@ const agentId = String(selectedAgent.AgentID || selectedAgent._id);
         }
         const data = await res.json();
         console.log("Response from server:", data);
-        
         if (data.conversationId) {
           console.log("Setting conversation ID:", data.conversationId);
           setConversationId(data.conversationId);
         }
-        if (data.reply && data.reply.content) {
-          const botMessage = {
-            role: "agent",
-            content: data.reply.content,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          };
-          setMessages(prev => [...prev, botMessage]);
-          console.log("Agent message added to conversation");
-        }
+       if (data.reply && data.reply.content) {
+        // We use the helper function you added at the top of the file
+        const cleanContent = parseBotResponse(data.reply.content);
+
+        const botMessage = {
+          role: "agent",
+          content: cleanContent,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, botMessage]);
+      }
       } catch (error) {
         console.error("Chat error:", error);
       } finally {
@@ -294,12 +330,16 @@ const agentId = String(selectedAgent.AgentID || selectedAgent._id);
           <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50 dark:bg-slate-950/50">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`p-4 rounded-2xl max-w-[80%] text-sm ${
+                <div className={`p-4 rounded-2xl max-w-[80%] text-sm overflow-hidden ${
                   msg.role === "user" 
-                    ? "bg-blue-600 text-white rounded-tr-none" 
-                    : "bg-white dark:bg-slate-800 border dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-tl-none"
+                  ? "bg-blue-600 text-white rounded-tr-none" 
+                  : "bg-white dark:bg-slate-800 border dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-tl-none"
                 }`}>
-                  {msg.content}
+                  {msg.role === "user" ? (
+                    msg.content
+                  ) : (
+                    <MarkdownMessage content={msg.content} />
+                  )}
                 </div>
               </div>
             ))}
