@@ -3,40 +3,77 @@ import { useNavigate } from 'react-router-dom';
 import { X, Mic, Activity, Trash2, Moon, Zap } from 'lucide-react';
 
 const VoiceAssistant = () => {
+  // --- STATE ---
   const [mode, setMode] = useState("offline");
   const [transcript, setTranscript] = useState("");
   const [assistantReply, setAssistantReply] = useState("");
   const [isMicAlive, setIsMicAlive] = useState(false); 
+
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   
+  // --- REFS ---
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
   const adaVoiceRef = useRef(null);
   
-  // Logic Refs
   const isSystemActive = useRef(localStorage.getItem('ada_active') === 'true');
   const isProcessingWakeWord = useRef(false);
   const watchdogTimer = useRef(null);
 
+  // --- 1. SETUP & EVENT LISTENER (The Nervous System) ---
   useEffect(() => {
     if (!token) {
       navigate('/login');
       return () => {};
     }
+    // A. Load Voice
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
-      adaVoiceRef.current = voices.find(v => v.name.includes("Google US English") || v.name.includes("Zira") || v.name.includes("Samantha")) || voices[0];
+      adaVoiceRef.current = voices.find(v => 
+        v.name.includes("Google US English") || 
+        v.name.includes("Zira") || 
+        v.name.includes("Samantha")
+      ) || voices[0];
     };
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
-    // Auto-wake on reload
+    // B. Auto-wake on reload
     if (isSystemActive.current) startSentryMode();
 
     return () => fullStop();
   }, [navigate, token]);
+    // C. SUPERVISOR LISTENER (The "Pain Signal")
+    const handleSupervisorSignal = (event) => {
+      const { message, type } = event.detail;
+      console.log(`⚡ Nervous System Signal: [${type}] ${message}`);
 
+      if (type === 'CRITICAL' || type === 'WARNING') {
+        // Stop listening, stop speaking
+        if (recognitionRef.current) recognitionRef.current.abort();
+        synthRef.current.cancel();
+        
+        // Force Speak
+        setMode("speaking");
+        speak(message, () => {
+           if (isSystemActive.current) startSentryMode();
+        });
+      } else {
+        speak(message);
+      }
+    };
+
+    window.addEventListener('ada:supervisor', handleSupervisorSignal);
+
+    // D. Cleanup
+    return () => {
+      fullStop();
+      window.removeEventListener('ada:supervisor', handleSupervisorSignal);
+    };
+  }, []);
+
+  // --- 2. CONTROLS ---
   const toggleSystem = () => {
     if (mode === "offline") {
       isSystemActive.current = true;
@@ -62,6 +99,7 @@ const VoiceAssistant = () => {
     setIsMicAlive(false);
   };
 
+  // --- 3. SENTRY MODE (Listening for "Ada") ---
   const startSentryMode = () => {
     if (!isSystemActive.current) return;
     fullStop(); 
@@ -79,7 +117,6 @@ const VoiceAssistant = () => {
     recognition.onstart = () => setIsMicAlive(true);
     recognition.onend = () => {
       setIsMicAlive(false);
-      // Auto-restart if silence
       if (isSystemActive.current && mode === "sentry") setTimeout(() => startSentryMode(), 500);
     };
 
@@ -87,7 +124,8 @@ const VoiceAssistant = () => {
       if (isProcessingWakeWord.current) return;
       const results = Array.from(event.results);
       const text = results[results.length - 1][0].transcript.toLowerCase();
-      if (text.includes("ada") || text.includes("hey data")) {
+      
+      if (text.includes("ada") || text.includes("hey data") || text.includes("beta")) {
         isProcessingWakeWord.current = true; 
         recognition.stop(); 
         speak("Yes?", () => startCommandMode());
@@ -97,6 +135,7 @@ const VoiceAssistant = () => {
     try { recognition.start(); } catch(e) {}
   };
 
+  // --- 4. COMMAND MODE ---
   const startCommandMode = () => {
     if (!isSystemActive.current) return;
     fullStop(); 
@@ -124,23 +163,53 @@ const VoiceAssistant = () => {
     try { recognition.start(); } catch(e) {}
   };
 
+  // --- 5. INTELLIGENCE (The Brain Upgrade) ---
   const handleSmartCommand = async (command) => {
     if (!command.trim()) { startSentryMode(); return; }
     fullStop();
     setMode("processing");
 
     try {
-      const systemPrompt = `You are Ada. USER SAID: "${command}" RETURN JSON ONLY. MANDATORY FIELDS: "action", "reply". ACTIONS: "theme", "navigate", "delete", "chat". Example: { "action": "navigate", "route": "/dashboard", "reply": "On it." }`;
+      console.log("🎤 Sending:", command);
 
-      const res = await fetch('/api/ai/system', { 
+      const systemPrompt = `
+        You are Ada, the System Interface.
+        YOUR JOB: Execute user commands. Return strict JSON.
+        
+        KNOWN ROUTES (Use EXACT paths):
+        - "Home" / "Dashboard" -> "/dashboard"
+        - "Builder" / "Create" -> "/builder"
+        - "Chats" / "Conversations" -> "/chats"
+        - "Settings" -> "/settings"
+
+        CAPABILITIES:
+        1. NAVIGATE: Switch screens.
+        2. THEME: Switch "dark" or "light".
+        3. DELETE: Remove an agent by name.
+        4. ANALYSIS: If asked "What can you do?", list these capabilities briefly.
+
+        STRICT RESPONSE FORMAT (JSON ONLY):
+        {
+          "action": "navigate" | "theme" | "delete" | "chat",
+          "route": "/path",
+          "theme": "dark" | "light",
+          "target": "Agent Name",
+          "reply": "Short, proffesional yet friendly confirmation."
+        }
+        USER SAID: "${command}"
+      `;
+
+      // FIX: Use the correct endpoint /ai/generate
+      const res = await fetch('/ai/generate', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: 'openai', message: systemPrompt })
       });
 
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
       
-      // Universal Extraction (Fixes "Executing" silence)
+      // Universal Extraction
       let rawText = data.response || data.reply || data.text || "{}";
       if (typeof rawText === 'object') rawText = JSON.stringify(rawText);
       
@@ -150,18 +219,19 @@ const VoiceAssistant = () => {
       if (first !== -1 && last !== -1) cleanJson = cleanJson.substring(first, last + 1);
 
       let result = {};
-      try { result = JSON.parse(cleanJson); } catch (e) { result = { reply: "I'm confused." }; }
+      try { result = JSON.parse(cleanJson); } catch (e) { result = { reply: "Command unrecognized." }; }
 
-      // Synonym Mapping
+      // Logic Mapping
       let action = (result.action || "chat").toLowerCase();
       if (action === "navigation") action = "navigate";
-      
-      const target = result.target || result.agent || result.name || result.item; 
+
       let route = result.route || result.destination || result.path;
       if (route && !route.startsWith('/')) route = '/' + route;
+
       const reply = result.reply || "Done.";
       setAssistantReply(reply);
 
+      // Execution
       if (action === "theme") {
         const root = document.documentElement;
         if (result.theme === "dark" || command.toLowerCase().includes("dark")) {
@@ -173,15 +243,20 @@ const VoiceAssistant = () => {
         }
         window.dispatchEvent(new Event("storage"));
         speak(reply, () => setTimeout(startSentryMode, 500));
-      } else if (action === "navigate" && route) {
+      } 
+      else if (action === "navigate" && route) {
         navigate(route);
         speak(reply, () => setTimeout(startSentryMode, 500));
-      } else if (action === "delete" && target) {
-        await performVoiceDelete(target);
-      } else {
+      } 
+      else if (action === "delete" && (result.target || result.agent || result.name || result.item)) {
+        await performVoiceDelete(result.target || result.agent || result.name || result.item);
+      } 
+      else {
         speak(reply, () => setTimeout(startSentryMode, 500));
       }
+
     } catch (err) {
+      console.error(err);
       speak("System error.", () => startSentryMode());
     }
   };
@@ -196,12 +271,14 @@ const VoiceAssistant = () => {
         
         const match = agents.find(a => (a.AgentName || "").toLowerCase().includes(targetName.toLowerCase()));
 
+
           if (match) {
             await fetch(`/agents/${match._id}/delete`, {
              method: 'POST',
              headers: { Authorization: `Bearer ${token}` }
             });
            speak(`Deleted ${match.AgentName}. Reloading.`, () => {
+
               window.location.reload(); 
            });
         } else {
@@ -236,6 +313,7 @@ const VoiceAssistant = () => {
     synthRef.current.speak(utterance);
   };
 
+  // --- RENDER ---
   if (mode === "offline") {
     return (
       <button onClick={toggleSystem} className="fixed bottom-6 right-6 z-50 bg-indigo-600 text-white p-4 rounded-full shadow-xl hover:scale-110 transition-transform"><Mic size={24} /></button>
