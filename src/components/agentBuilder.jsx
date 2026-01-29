@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AgentBuilderAssistant from './AgentBuilderAssistant';
 import AgentWorkflowEditor from './AgentWorkflowEditor';
 
 const AgentBuilder = () => {
   const navigate = useNavigate();
+  const token = localStorage.getItem('token');
   const [viewMode, setViewMode] = useState('form'); // 'form' or 'assistant'
   
   const [workflowData, setWorkflowData] = useState(null);
@@ -133,9 +134,13 @@ const AgentBuilder = () => {
       console.log("🚀 Deploying Agent Payload:", agentData);
 
       // 7. SEND TO BACKEND
+      const token = localStorage.getItem('token');
       const response = await fetch('/agents', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(agentData),
       });
 
@@ -152,6 +157,12 @@ const AgentBuilder = () => {
       alert('Network Error: Ensure backend is running.');
     }
   };
+
+  useEffect(() => {
+    if (!token) {
+      navigate('/login');
+    }
+  }, [navigate, token]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 pb-20 animate-fade-in">

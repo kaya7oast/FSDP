@@ -8,6 +8,7 @@ const VoiceAssistant = () => {
   const [assistantReply, setAssistantReply] = useState("");
   const [isMicAlive, setIsMicAlive] = useState(false); 
   const navigate = useNavigate();
+  const token = localStorage.getItem('token');
   
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
@@ -19,6 +20,10 @@ const VoiceAssistant = () => {
   const watchdogTimer = useRef(null);
 
   useEffect(() => {
+    if (!token) {
+      navigate('/login');
+      return () => {};
+    }
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
       adaVoiceRef.current = voices.find(v => v.name.includes("Google US English") || v.name.includes("Zira") || v.name.includes("Samantha")) || voices[0];
@@ -30,7 +35,7 @@ const VoiceAssistant = () => {
     if (isSystemActive.current) startSentryMode();
 
     return () => fullStop();
-  }, []);
+  }, [navigate, token]);
 
   const toggleSystem = () => {
     if (mode === "offline") {
@@ -182,15 +187,20 @@ const VoiceAssistant = () => {
   };
 
   const performVoiceDelete = async (targetName) => {
-     try {
-        const listRes = await fetch('/agents');
+      try {
+        const listRes = await fetch('/agents', {
+         headers: { Authorization: `Bearer ${token}` }
+        });
         const rawData = await listRes.json();
         const agents = Array.isArray(rawData) ? rawData : (rawData.agents || []);
         
         const match = agents.find(a => (a.AgentName || "").toLowerCase().includes(targetName.toLowerCase()));
 
-        if (match) {
-           await fetch(`/agents/${match._id}/delete`, { method: 'POST' });
+          if (match) {
+            await fetch(`/agents/${match._id}/delete`, {
+             method: 'POST',
+             headers: { Authorization: `Bearer ${token}` }
+            });
            speak(`Deleted ${match.AgentName}. Reloading.`, () => {
               window.location.reload(); 
            });

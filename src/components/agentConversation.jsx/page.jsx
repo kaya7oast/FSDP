@@ -1,10 +1,13 @@
   import React, { useState, useEffect, useRef } from "react";
-  import { Avatar, AvatarFallback } from "./avatar";
+  import { useNavigate } from "react-router-dom";
+    import { Avatar, AvatarFallback } from "./avatar";
 
   // Hardcoded user ID to match ingestion and conversation service defaults
-  const USER_ID = "U002"; 
+  const USER_ID = localStorage.getItem("userId")
+  const TOKEN = localStorage.getItem("token")
 
   export default function AgentConversation() {
+    const navigate = useNavigate();
     const [agents, setAgents] = useState([]);
     const [selectedAgent, setSelectedAgent] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -23,10 +26,16 @@
   // Inside src/components/agentConversation.jsx/page.jsx
 
   useEffect(() => {
+    if (!TOKEN) {
+      navigate("/login");
+      return;
+    }
     const fetchInitialData = async () => {
       try {
         // 1. Fetch Agents
-        const agentRes = await fetch("/agents");
+        const agentRes = await fetch("/agents", {
+          headers: { Authorization: `Bearer ${TOKEN}` }
+        });
         if (agentRes.ok) {
           const agentData = await agentRes.json();
           setAgents(Array.isArray(agentData) ? agentData : []);
@@ -34,7 +43,9 @@
         }
 
         // 2. FETCH DOCUMENTS ON REFRESH - PLACE HERE
-        const docRes = await fetch(`/ingestion/docs/${USER_ID}`); 
+        const docRes = await fetch(`/ingestion/docs/${USER_ID}`, {
+          headers: { Authorization: `Bearer ${TOKEN}` }
+        }); 
         if (docRes.ok) {
           const docData = await docRes.json();
           console.log("Docs received:", docData);
@@ -57,7 +68,9 @@
 
       try {
         // Fetch conversations for this user
-        const res = await fetch(`/conversations/user/${USER_ID}`);
+        const res = await fetch(`/conversations/user/${USER_ID}`, {
+          headers: { Authorization: `Bearer ${TOKEN}` }
+        });
         
         if (res.ok) {
           const conversations = await res.json();
@@ -131,6 +144,7 @@
       // SEND FILE TO BACKEND - PLACE HERE
       const res = await fetch("/ingestion/upload", { 
         method: "POST",
+        headers: { Authorization: `Bearer ${TOKEN}` },
         body: formData,
       });
 
@@ -169,7 +183,10 @@
 const agentId = String(selectedAgent.AgentID || selectedAgent._id);
       const res = await fetch(`/conversations/${agentId}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${TOKEN}`
+        },
         body: JSON.stringify({
           userId: USER_ID,
           message: userText,

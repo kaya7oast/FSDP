@@ -10,6 +10,7 @@ const VoiceAssistant = () => {
   const [isMicAlive, setIsMicAlive] = useState(false); 
 
   const navigate = useNavigate();
+  const token = localStorage.getItem('token');
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
   const adaVoiceRef = useRef(null);
@@ -21,6 +22,10 @@ const VoiceAssistant = () => {
 
   // --- 1. SETUP ---
   useEffect(() => {
+    if (!token) {
+      navigate('/login');
+      return () => {};
+    }
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
       adaVoiceRef.current = voices.find(v => 
@@ -38,7 +43,7 @@ const VoiceAssistant = () => {
       clearInterval(heartbeatTimer.current);
       safeStop();
     };
-  }, []);
+  }, [navigate, token]);
 
   useEffect(() => { modeRef.current = mode; }, [mode]);
 
@@ -223,9 +228,11 @@ const VoiceAssistant = () => {
 
   // --- 5. HELPER: VOICE DELETE ---
   const performVoiceDelete = async (targetName, initialReply) => {
-     try {
+      try {
         // A. Fetch all agents to find the ID
-        const listRes = await fetch('/agents'); // Uses Proxy
+        const listRes = await fetch('/agents', {
+         headers: { Authorization: `Bearer ${token}` }
+        }); // Uses Proxy
         const agents = await listRes.json();
         
         // B. Fuzzy Match (Find agent that contains the spoken name)
@@ -233,9 +240,12 @@ const VoiceAssistant = () => {
            a.AgentName?.toLowerCase().includes(targetName.toLowerCase())
         );
 
-        if (match) {
-           // C. Perform Delete
-           await fetch(`/agents/${match._id}/delete`, { method: 'POST' });
+          if (match) {
+            // C. Perform Delete
+            await fetch(`/agents/${match._id}/delete`, {
+             method: 'POST',
+             headers: { Authorization: `Bearer ${token}` }
+            });
            speak(`Deleted agent ${match.AgentName}.`, () => {
               window.location.reload(); // Refresh to show changes
            });

@@ -21,9 +21,10 @@ const Login = () => {
 
   const apiBase = import.meta.env.VITE_API_BASE_USERS;
   // Fallback to absolute path if Vite environment fails
-  const fetchUrl = apiBase ? `${apiBase}/login` : "http://localhost:4003/users/login";
+  const fetchUrl = 'http://localhost:3000/users/login';
 
-  try {
+
+  try { 
     const response = await fetch(fetchUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -38,10 +39,13 @@ const Login = () => {
     const data = await response.json();
 
     if (response.ok) {
+      alert('Login successful:', data.message);
       // Identity storage for the "Welcome back" message
       localStorage.setItem('token', data.token);
       localStorage.setItem('userId', data.userId);
       localStorage.setItem('username', data.username);
+      localStorage.setItem('role', data.role);
+      localStorage.setItem('privilage', data.privilage);
       navigate('/dashboard');
     } else {
       // This triggers if Username/Email is wrong OR Password is wrong
@@ -86,18 +90,7 @@ const Login = () => {
             />
           </div>
 
-          {/* Email Field */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
-            <input
-              type="email"
-              name="email"
-              required
-              placeholder="name@gmail.com"
-              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-border-light dark:border-border-dark rounded-xl focus:ring-2 focus:ring-blue-600 outline-none transition-all dark:text-white"
-              onChange={handleChange}
-            />
-          </div>
+          
 
           {/* Password Field */}
           <div>
