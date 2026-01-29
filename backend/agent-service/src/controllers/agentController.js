@@ -36,44 +36,34 @@ const compileNodesToPrompt = (nodes) => {
 // --- 2. CREATE AGENT (Updated) ---
 export const addAgent = async (req, res) => {
   try {
-    console.log("📥 Microservice received agent payload...");
-    
-    // Extract WorkflowVisual specifically
     const { AgentName, WorkflowVisual, Capabilities, ...otherData } = req.body;
-    
-    // 1. Get the nodes (Safely handle missing data)
     const nodes = WorkflowVisual?.visual?.nodes || [];
-    
-    // 2. Run the Compiler
     const compiledSystemPrompt = compileNodesToPrompt(nodes);
-    console.log(`🧠 Generated Prompt length: ${compiledSystemPrompt.length}`);
 
-    // 3. Handle Capabilities (ensure array)
-    const finalCapabilities = Array.isArray(Capabilities) 
-      ? Capabilities 
-      : (typeof Capabilities === 'string' ? Capabilities.split(',') : []);
+    const finalCapabilities = Array.isArray(Capabilities)
+      ? Capabilities
+      : (typeof Capabilities === "string" ? Capabilities.split(",") : []);
 
-    // 4. Create Agent Instance
-    // We map the frontend data to the Schema fields explicitly
     const agent = new Agent({
       AgentName: AgentName || "Unnamed Agent",
-      VisualNodes: nodes,                  // Save UI
-      SystemPrompt: compiledSystemPrompt,  // Save Brain
+      VisualNodes: nodes,
+      SystemPrompt: compiledSystemPrompt,
       Capabilities: finalCapabilities,
+      Owner: {
+        UserID: req.user.userId,   // ✅ Attach owner
+        UserName: req.user.username
+      },
       ...otherData
     });
 
-    // Reset ID to null so the pre-save hook generates it
-    if (agent.AgentID) agent.AgentID = null;
-
     await agent.save();
     res.json(agent);
-
   } catch (err) {
     console.error("addAgent Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // --- GET AGENT BY ID ---
 export const getAgentbyId = async (req, res) => {
@@ -90,17 +80,20 @@ export const getAgentbyId = async (req, res) => {
 // --- GET ALL AGENTS ---
 export const getAllAgents = async (req, res) => {
   try {
-    // OLD: const agents = await Agent.find(); 
-    
-    // NEW: Find everything where Status is NOT "deleted"
-    // $ne means "Not Equal"
-    const agents = await Agent.find({ Status: { $ne: "deleted" } });
-    
+    const query = { Status: { $ne: "Deleted" } };
+
+    // Admin can see all, users see only theirs
+    if (req.user.role !== "admin") {
+      query["Owner.UserID"] = req.user.userId;
+    }
+
+    const agents = await Agent.find(query);
     res.json(agents);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // --- GET ACTIVE AGENTS ---
 export const getActiveAgents = async (req, res) => {
@@ -132,6 +125,16 @@ export const deleteAgent = async (req, res) => {
       { new: true }
     );
     res.json(agent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getAgentsByUserId = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const agents = await Agent.find({ "Owner.UserID": userId, Status: { $ne: "Deleted" } });
+    res.json(agents);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

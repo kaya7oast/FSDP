@@ -42,6 +42,7 @@ services:
     environment:
       PORT: 4001
       MONGO_URI: ${AGENT_DB}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "4001:4001"
     volumes:
@@ -55,6 +56,7 @@ services:
     environment:
       PORT: 4002
       MONGO_URI: ${CONVERSATION_DB}
+      JWT_SECRET: ${JWT_SECRET}
       AI_SERVICE_URL: http://ai-service:4000
       AGENT_SERVICE: http://agent-service:4001
       RETRIEVAL_SERVICE_URL: http://retrieval-service:4005
@@ -100,6 +102,7 @@ services:
     environment:
       PORT: 4006
       MONGO_URI: ${INGESTION_DB}  # MongoDB Compass URI from .env
+      JWT_SECRET: ${JWT_SECRET}
       EMBEDDING_SERVICE_URL: http://retrieval-service:4005
     networks:
       - backend

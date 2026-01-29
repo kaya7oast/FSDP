@@ -3,6 +3,7 @@ import multer from "multer";
 import dotenv from "dotenv";
 import { uploadFile, getUserDocs, deleteDocument } from "./controllers/uploadController.js";
 import mongoose from "mongoose";
+import protect from "./middlewares/authMiddleware.js";
 
 
 dotenv.config();
@@ -19,13 +20,13 @@ const upload = multer(); // in-memory storage
 // --------------------
 
 // Upload a single file
-app.post("/upload", upload.single("file"), uploadFile);
+app.post("/upload", protect, upload.single("file"), uploadFile);
 
 // Get user documents
-app.get("/docs/:userId", getUserDocs);
+app.get("/docs/:userId", protect, getUserDocs);
 
 // Delete a specific document
-app.delete("/docs/:userId/:docId", deleteDocument);
+app.delete("/docs/:userId/:docId", protect, deleteDocument);
 
 // Health route
 app.get("/test", (req, res) => {

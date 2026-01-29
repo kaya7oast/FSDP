@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AgentCard from "./AgentCard";
 
 // Use relative path for Proxy
 const API_BASE = "/agents"; 
 
 function AgentDashboard() {
+  const navigate = useNavigate();
+  const token = localStorage.getItem("token");
   // ------------------------------------------
   // 1. State Definitions
   // ------------------------------------------
@@ -33,6 +35,10 @@ function AgentDashboard() {
   
   // Theme Effect
   useEffect(() => {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
     const root = document.documentElement;
     if (darkMode) {
       root.classList.add("dark");
@@ -41,17 +47,21 @@ function AgentDashboard() {
       root.classList.remove("dark");
       localStorage.setItem("theme", "light");
     }
-  }, [darkMode]);
+  }, [darkMode, navigate, token]);
 
   // Data Fetching Effect
   const fetchAgents = async () => {
     setLoading(true);
     try {
-      const userId = "U123"; //localStorage.getItem('userId'); 
+      const userId = localStorage.getItem('userId');
+      const token = localStorage.getItem('token');
       console.log(`📡 Requesting agents for User ID: ${userId}`);
       
-      const res = await fetch(`${API_BASE}?userId=${userId}`); 
+      const res = await fetch(`${API_BASE}?userId=${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }); 
       const data = await res.json();
+      console.log("📥 Fetched Agents:", data);
       setAgents(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
@@ -71,7 +81,20 @@ function AgentDashboard() {
       setDarkMode(true);
     }
 
-    // 3. Fetch Data
+    // 3. Log JWT Token to Console
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+      const parts = token.split('.');
+      const decoded = JSON.parse(atob(parts[1]));
+      console.log("🔐 JWT Token Decoded:", decoded);
+      console.log("⏳ Token Expiry Time:", new Date(decoded.exp * 1000).toLocaleString());
+      } catch (err) {
+      console.error("Failed to decode token:", err);
+      }
+    }
+
+    // 4. Fetch Data
     fetchAgents();
   }, []);
 
@@ -83,7 +106,11 @@ function AgentDashboard() {
     // Optimistic Update
     setAgents((prev) => prev.filter((a) => a._id !== _id));
     try {
-      await fetch(`${API_BASE}/${_id}/delete`, { method: "POST" });
+      const token = localStorage.getItem('token');
+      await fetch(`${API_BASE}/${_id}/delete`, { 
+        method: "POST",
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
     } catch (err) {
       console.error(err);
       fetchAgents(); // Revert on error
@@ -97,9 +124,13 @@ function AgentDashboard() {
     const newStatus = current === "active" ? "archived" : "active";
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE}/${_id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ Status: newStatus, UpdatedAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error("Status toggle failed");
@@ -128,9 +159,13 @@ function AgentDashboard() {
     };
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(API_BASE, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(dupPayload),
       });
       
@@ -163,6 +198,8 @@ function AgentDashboard() {
 
     return matchesSearch && matchesStatus;
   });
+
+
 
   // ------------------------------------------
   // 6. Render

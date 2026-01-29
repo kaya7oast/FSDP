@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import protect from "./middlewares/authMiddleware.js";
 
 import { retrieve } from "./controllers/retrievalController.js";
 
@@ -26,6 +27,7 @@ app.get("/test", (req, res) => {
    Retrieval Endpoint
 ======================= */
 app.post("/", retrieve);
+app.post("/retrieve", protect, retrieve);
 
 /* =======================
    MongoDB Connection

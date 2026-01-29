@@ -10,15 +10,18 @@ export const protect = async (req, res, next) => {
   }
 
   if (!token) {
+    console.log("❌ No token provided in request");
     return res.status(401).json({ message: "Not authenticated" });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("✅ Token verified for user:", decoded.userId, decoded.username);
     req.user = decoded; // { userId, role, username, privilage }
     next();
   } catch (err) {
-    return res.status(401).json({ message: "Invalid token" });
+    console.log("❌ Token verification failed:", err.message);
+    return res.status(401).json({ message: "Invalid token", error: err.message });
   }
 };
 

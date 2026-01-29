@@ -8,6 +8,7 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000/agents'
 
 const AgentHomepage = () => {
   const navigate = useNavigate();
+  const token = localStorage.getItem('token');
 
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,7 +18,9 @@ const AgentHomepage = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(API_BASE);
+      const res = await fetch(API_BASE, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
       const data = await res.json();
       // ensure array
@@ -32,8 +35,12 @@ const AgentHomepage = () => {
   };
 
   useEffect(() => {
+    if (!token) {
+      navigate('/login');
+      return;
+    }
     fetchAgents();
-  }, []);
+  }, [navigate, token]);
 
   // Local preview card that matches fields used in agentDashboard.jsx
   const AgentPreview = ({ agent }) => {

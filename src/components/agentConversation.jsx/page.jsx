@@ -1,38 +1,64 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback } from "./avatar";
-import ChatInput from "./input"; // Your Component
-import { MarkdownMessage } from "./MarkdownMessage"; // Teammate's Component
+import ChatInput from "./input";
+import { MarkdownMessage } from "./MarkdownMessage";
 
-// Hardcoded user ID to match ingestion and conversation service defaults
-const USER_ID = "U002"; 
+// Use authenticated user info
+const USER_ID = localStorage.getItem("userId");
+const TOKEN = localStorage.getItem("token");
 
-// --- TEAMMATE'S HELPER: Cleans up JSON artifacts from Bot ---
+// --- Helper: Cleans up JSON artifacts from Bot ---
 const parseBotResponse = (rawContent) => {
-  if (typeof rawContent !== 'string') return rawContent;
+  if (typeof rawContent !== "string") return rawContent;
 
   let cleaned = rawContent.trim();
 
-  // 1. Remove markdown code blocks if the bot wrapped the JSON in them
-  if (cleaned.includes('```')) {
-    cleaned = cleaned.replace(/```json/g, '').replace(/```/g, '').trim();
+  // Remove markdown code blocks
+  if (cleaned.includes("```")) {
+    cleaned = cleaned.replace(/```json/g, "").replace(/```/g, "").trim();
   }
 
-  // 2. Attempt to parse JSON to find 'final_response'
+  // Attempt to extract final_response from JSON
   try {
-    const firstBrace = cleaned.indexOf('{');
-    const lastBrace = cleaned.lastIndexOf('}');
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
 
     if (firstBrace !== -1 && lastBrace !== -1) {
       const jsonCandidate = cleaned.substring(firstBrace, lastBrace + 1);
       const parsed = JSON.parse(jsonCandidate);
-      
+
       if (parsed.final_response) {
         return parsed.final_response;
       }
     }
   } catch (e) {
-    // If parsing fails, it's likely just a normal text message, which is fine
+    // Ignore JSON parse errors
   }
+
+  return cleaned;
+};
+
+export default function AgentConversation() {
+  const navigate = useNavigate();
+
+  const [agents, setAgents] = useState([]);
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [conversationId, setConversationId] = useState(null);
+
+  // Knowledge Base / Retrieval State
+  const [documents, setDocuments] = useState([]);
+  const [selectedDocIds, setSelectedDocIds] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  // component logic continues...
+}
+
 
   return cleaned;
 };
@@ -53,16 +79,26 @@ export default function AgentConversation() {
 
   // 1. Fetch Agents and Docs
   useEffect(() => {
+    if (!TOKEN) {
+      navigate("/login");
+      return;
+    }
     const fetchInitialData = async () => {
       try {
-        const agentRes = await fetch("/agents");
+        // 1. Fetch Agents
+        const agentRes = await fetch("/agents", {
+          headers: { Authorization: `Bearer ${TOKEN}` }
+        });
         if (agentRes.ok) {
           const agentData = await agentRes.json();
           setAgents(Array.isArray(agentData) ? agentData : []);
           if (agentData.length > 0) setSelectedAgent(agentData[0]);
         }
 
-        const docRes = await fetch(`/ingestion/docs/${USER_ID}`); 
+        // 2. FETCH DOCUMENTS ON REFRESH - PLACE HERE
+        const docRes = await fetch(`/ingestion/docs/${USER_ID}`, {
+          headers: { Authorization: `Bearer ${TOKEN}` }
+        }); 
         if (docRes.ok) {
           const docData = await docRes.json();
           setDocuments(Array.isArray(docData) ? docData : []);
@@ -84,7 +120,11 @@ export default function AgentConversation() {
       setSelectedDocIds([]); 
 
       try {
-        const res = await fetch(`/conversations/user/${USER_ID}`);
+        // Fetch conversations for this user
+        const res = await fetch(`/conversations/user/${USER_ID}`, {
+          headers: { Authorization: `Bearer ${TOKEN}` }
+        });
+        
         if (res.ok) {
           const conversations = await res.json();
           
@@ -314,6 +354,7 @@ export default function AgentConversation() {
       // SEND FILE TO BACKEND - PLACE HERE
       const res = await fetch("/ingestion/upload", { 
         method: "POST",
+        headers: { Authorization: `Bearer ${TOKEN}` },
         body: formData,
       });
 
@@ -354,7 +395,10 @@ export default function AgentConversation() {
 
       const res = await fetch(`/conversations/${agentId}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${TOKEN}`
+        },
         body: JSON.stringify({
           userId: USER_ID,
           message: userText,

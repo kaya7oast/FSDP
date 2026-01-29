@@ -30,14 +30,17 @@ export const registerUser = async (req, res) => {
       userId: counter.seq.toString(),
       username,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      role: "user",
+      privilage: "standard"
     });
 
-    const token = jwt.sign({ userId: user.userId }, process.env.JWT_SECRET, { expiresIn: "1d" });
+    const token = jwt.sign({ userId: user.userId, username: user.username, role: user.role, privilage: user.privilage }, process.env.JWT_SECRET, { expiresIn: "1d" });
 
     res.status(201).json({
       message: "User registered successfully",
       userId: user.userId,
+      username: user.username,
       token 
     });
   } catch (err) {
@@ -58,15 +61,18 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ userId: user.userId }, process.env.JWT_SECRET, { expiresIn: "1d" });
-
+    const token = jwt.sign({ userId: user.userId, username: user.username, role: user.role, privilage: user.privilage }, process.env.JWT_SECRET, { expiresIn: "1d" });
+    console.log(`User ${user} logged in successfully.`);
     // Include username in the response for personalization
     res.json({ 
       message: "Login successful", 
       userId: user.userId, 
-      username: user.username, // Added this line
+      username: user.username,
+      role: user.role,          // ✅ ADD THIS
+      privilage: user.privilage, // ✅ ADD THIS
       token 
     });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -78,7 +84,7 @@ export const guestLogin = async (req, res) => {
   try {
     // Logic to handle guest access or return a specific guest token
     const guestId = "guest_" + Date.now();
-    const token = jwt.sign({ userId: guestId, role: 'guest' }, process.env.JWT_SECRET, { expiresIn: "2h" });
+    const token = jwt.sign({ userId: guestId, role: 'guest', privilage: 'guest' }, process.env.JWT_SECRET, { expiresIn: "2h" });
 
     res.json({ message: "Guest login successful", userId: guestId, token });
   } catch (err) {
