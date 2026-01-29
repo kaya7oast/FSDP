@@ -17,68 +17,31 @@ async function getAgentbyId(agentId) {
     return null;
   }
 }
+
+
 //choose the correct AI providers
-async function routeLLM({ agent, userMessage, phase = "analysis" }) {
-  const routerProvider = "openai";
+function routeLLM({ agent, phase = "analysis" }) {
+  // 1. If synthesis phase (final user response), prefer Gemini for speed/smoothness
+  // or OpenAI for reliability. 
+  if (phase === "synthesis") return "gemini";
 
-  const routingPrompt = `
-You are an LLM routing controller.
-
-Your job is to choose the BEST language model provider
-for the CURRENT agent and task phase.
-
-PHASE:
-${phase}
-(analysis = internal reasoning, research, critique)
-(synthesis = final user-facing response)
-
-AGENT ROLE:
-${agent.Specialization}
-
-AGENT MISSION:
-${agent.Description}
-
-USER MESSAGE:
-"${userMessage}"
-
-Available providers:
-- openai → best for coding, logic, debugging
-- gemini → best for deep reasoning, explanations
-- perplexity → best for writing, tone, creativity
-- deepseek → best for factual lookup, search-heavy tasks
-
-RULES:
-- Choose ONLY ONE provider
-- Prefer DIFFERENT providers across agents when appropriate
-- Return ONLY one word
-
-Answer with exactly one of:
-openai | gemini | perplexity | deepseek
-`;
-
-  try {
-    const decision = await generateAIResponse(routerProvider, [
-      { role: "system", content: routingPrompt },
-    ]);
-
-    const provider = decision.trim().toLowerCase();
-
-    if (["openai", "gemini", "perplexity", "deepseek"].includes(provider)) {
-      console.log(
-    `[LLM ROUTER] agent="${agent.AgentName}" phase="${phase}" → provider="${provider}"`
-  ); //remove when done
-      return provider;
-    }
-  } catch (e) {
-    console.warn("LLM routing failed, fallback used:", e.message);
+  const spec = (agent.Specialization || "").toLowerCase();
+  
+  // 2. Logic-based routing
+  if (spec.includes("code") || spec.includes("developer") || spec.includes("debug")) {
+    return "openai"; // GPT-4 is usually best for code
   }
-
-  return agent?.LLMProvider || "openai";
+  if (spec.includes("search") || spec.includes("fact") || spec.includes("news")) {
+    return "deepseek"; // or whoever is your search specialist
+  }
+  
+  // 3. Fallback to Agent's default or global default
+  return agent.LLMProvider || "openai";
 }
 
 
 // Helper: call AI service to generate a response
-async function generateAIResponse(provider , messages = []) {
+async function generateAIResponse(provider, messages = []) {
   if (!AI_SERVICE_URL) {
     throw new Error("AI_SERVICE_URL not configured");
   }
@@ -89,15 +52,20 @@ async function generateAIResponse(provider , messages = []) {
       messages,
     });
 
-    // ai-service returns { response: '...' } (or similar). Try common shapes.
+    let rawOutput = "";
+
+    // 1. Extract the raw string from your AI Service response structure
     if (resp.data) {
-      if (typeof resp.data.response === "string") return resp.data.response;
-      if (typeof resp.data.reply === "string") return resp.data.reply;
-      // fallback: stringify useful parts
-      return JSON.stringify(resp.data);
+      if (typeof resp.data.response === "string") rawOutput = resp.data.response;
+      else if (typeof resp.data.reply === "string") rawOutput = resp.data.reply;
+      else if (typeof resp.data.content === "string") rawOutput = resp.data.content;
+      else rawOutput = JSON.stringify(resp.data);
     }
 
-    return "";
+    // 2. CLEAN it using the helper
+    // This removes {"final_response": "..."} wrappers
+    return cleanLLMResponse(rawOutput);
+
   } catch (err) {
     console.error("generateAIResponse error:", err?.response?.data || err.message || err);
     throw err;
@@ -123,22 +91,28 @@ export const chatWithAgent = async (req, res) => {
   } = req.body;
 
   try {
-    const supervisor = await getAgentbyId(agentId);
+    const [supervisor, allAgentsResp, retrievedContext] = await Promise.all([
+      getAgentbyId(agentId),
+      axios.get(`${AGENT_SERVICE_URL}/`).catch(e => ({ data: [] })), 
+      docIds.length > 0 
+        ? retrieveContext({ userId, docIds, query: message }) 
+        : Promise.resolve("")
+    ]);
 
-  if (!supervisor) {
-    console.error("Agent not found in Agent Service");
-    return res.status(404).json({ error: "Agent not found" });
-  }
-    // 🗂 Load ALL agents as a catalog (excluding supervisor)
-    const allAgentsResp = await axios.get(`${AGENT_SERVICE_URL}/`);
+    // Validation checks happen AFTER data arrives
+    if (!supervisor) {
+      console.error("Agent not found in Agent Service");
+      return res.status(404).json({ error: "Agent not found" });
+    }
 
-    // 🛠️ FIX: Handle if API returns raw array OR object wrapper
+    // Process Agent Catalog
     const rawAgents = Array.isArray(allAgentsResp.data) 
       ? allAgentsResp.data 
       : (allAgentsResp.data.agents || []);
 
+    const supervisorIdStr = String(supervisor._id || supervisor.AgentID);
     const agentCatalog = rawAgents.filter(
-      a => String(a._id) !== String(supervisor._id)
+      a => String(a._id || a.AgentID) !== supervisorIdStr
     );
 
     // 🧠 Supervisor selects relevant sub-agents dynamically
@@ -152,7 +126,35 @@ export const chatWithAgent = async (req, res) => {
     const activeSubAgents = agentCatalog.filter(agent =>
       selectedAgentIds.includes(String(agent._id))
     );
+    if (activeSubAgents.length === 0) {
+      console.log("[OPTIMIZATION] Short-circuiting: Supervisor handling directly.");
+      const directMessages = [
+        { role: "system", content: systemMessage },
+        ...(retrievedContext ? [{ role: "system", content: `CONTEXT:\n${retrievedContext}` }] : []),
+        ...conversation.messages.filter(m => m.role !== "system").slice(-8)
+      ];
 
+      // Fast route check (logic-based)
+      const directProvider = routeLLM({ agent: supervisor, phase: "synthesis" });
+      
+      const directReply = await generateAIResponse(directProvider, directMessages);
+
+      const replyObj = {
+        role: "assistant",
+        agentId: supervisor._id,
+        content: directReply,
+        visibility: "user",
+        createdAt: new Date().toISOString(),
+      };
+
+      conversation.messages.push(replyObj);
+      await conversation.save();
+
+      return res.json({ 
+        reply: replyObj,
+        conversationId: conversation.conversationId 
+      });
+    }
     if (activeSubAgents.length === 0) {
       console.warn(
         "[AGENT ROUTER] No agents selected — supervisor handling alone"
@@ -232,18 +234,7 @@ s
       visibility: "user",
       createdAt: new Date().toISOString(),
     });
-
-    let retrievedContext = "";
-
-    if (docIds.length > 0) {
-      retrievedContext = await retrieveContext({
-        userId,
-        docIds,
-        query: message
-      });
-    }
     
-
     // Only send last 10 messages to AI
     const messagesToSend = [
       { role: "system", content: systemMessage },
@@ -269,11 +260,7 @@ s
 
         const subPrompt = buildAgentSystemPrompt(subAgent, message);
 
-        const chosenProvider = await routeLLM({
-          agent: subAgent,
-          userMessage: message,
-        });
-
+        const chosenProvider = routeLLM({ agent: subAgent });
         console.log(
           `[SUB-AGENT] ${subAgent.AgentName} using provider="${chosenProvider}"`
         );
@@ -321,12 +308,8 @@ s
       { role: "user", content: message },
     ];
 
-    const supervisorProvider = await routeLLM({
-      agent: supervisor,
-      userMessage: message,
-      phase: "synthesis",
-    });
-
+    const supervisorProvider = routeLLM({ agent: supervisor, phase: "synthesis" });
+    
     console.log(
       `[SUPERVISOR] ${supervisor.AgentName} using provider="${supervisorProvider}"`
     );
@@ -342,37 +325,17 @@ s
     };
 
     conversation.messages.push(reply);
-    if (conversation.messages.length > 20) {
-      const summary = await generateAIResponse("openai", [
-    {
-      role: "system",
-      content: "Summarize the following conversation for long-term memory. Capture goals, decisions, and important context."
-    },
-    ...conversation.messages
-      .filter(m => m.visibility === "user")
-      .map(m => ({
-        role: m.role,
-        content: m.content
-      }))
-    ]);
-
-    conversation.latestSummary = summary;
-
-  // prepend summary as system memory
-    conversation.messages.unshift({
-      role: "system",
-        content: `CONVERSATION SUMMARY:\n${summary}`,
-        visibility: "user",
-        createdAt: new Date().toISOString()
-      });
-
-      // keep token window small
-      conversation.messages = conversation.messages.slice(0, 25);
-    }
+    
+    // Save conversation
     await conversation.save();
 
+    // Return only user-visible content to the client
     res.json({ 
-      reply, 
+      reply: {
+        role: "assistant",
+        content: replyText,
+        visibility: "user"
+      },
       conversationId: conversation.conversationId 
     });
     
@@ -396,7 +359,16 @@ export const getConversation = async (req, res) => {
     const conversation = await Conversation.findOne({ conversationId });
     if (!conversation) return res.status(404).json({ error: "Conversation not found" });
     if (conversation.status === "deleted") return res.status(410).json({ error: "Conversation deleted" });
-    res.json(conversation);
+    
+    // Filter out system prompts and internal messages before sending to client
+    const filteredConversation = {
+      ...conversation.toObject(),
+      messages: conversation.messages.filter(m => 
+        m.role !== "system" && m.visibility === "user"
+      )
+    };
+    
+    res.json(filteredConversation);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -407,7 +379,16 @@ export const getAllConversations = async (req, res) => {
   const { userId } = req.params;
   try {
     const conversations = await Conversation.find({ userId, status: "active" });
-    res.json(conversations);
+    
+    // Filter out system prompts and internal messages before sending to client
+    const filteredConversations = conversations.map(conv => ({
+      ...conv.toObject(),
+      messages: conv.messages.filter(m => 
+        m.role !== "system" && m.visibility === "user"
+      )
+    }));
+    
+    res.json(filteredConversations);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -592,23 +573,30 @@ Specialization: ${a.Specialization}
 Description: ${a.Description}`
 ).join("\n\n")}
 
-RULES:
-- Select ONLY agents relevant to the request
-- Choose 1–3 agents max
-- Return ONLY agent IDs
-- Comma-separated
-- No explanation
+CRITICAL SELECTION RULES:
+1. **MULTI-AGENT COLLABORATION IS REQUIRED**: You MUST select at least 2 agents to ensure diverse perspectives and error checking.
+2. **Strategy**:
+   - Pick a PRIMARY specialist to handle the main task.
+   - Pick a SECONDARY specialist to provide context, review, alternative viewpoints, or fact-checking.
+   - Example: For code, pick "Developer" AND "Security" or "Quality Assurance".
+   - Example: For writing, pick "Writer" AND "Editor" or "Fact Checker".
+
+OUTPUT RULES:
+- Return ONLY agent IDs.
+- Comma-separated (e.g., ID1, ID2).
+- Do NOT provide explanations.
+- Select between 2 and 4 agents.
 `;
 
-  const decision = await generateAIResponse("openai", [
-  { role: "system", content: prompt },
-]);
+  const decision = await generateAIResponse("openai", [ // Use a smart model (GPT-4) for routing
+    { role: "system", content: prompt },
+  ]);
 
-// Clean the response: remove quotes, backticks, or "ID:" prefixes if the LLM hallucinated them
-return decision
-  .split(",")
-  .map(id => id.trim().replace(/['"`]|ID:\s*/g, "")) 
-  .filter(Boolean);
+  // Clean the response
+  return decision
+    .split(",")
+    .map(id => id.trim().replace(/['"`]|ID:\s*/g, "")) 
+    .filter(Boolean);
 }
 
 function getConversationContext(conversation, limit = 12) {
@@ -621,4 +609,24 @@ function getConversationContext(conversation, limit = 12) {
       role: m.role,
       content: m.content,
     }));
+}
+
+// --- NEW HELPER: Cleans AI output to ensure plain text ---
+function cleanLLMResponse(responseText) {
+  if (!responseText) return "";
+  if (typeof responseText !== "string") return JSON.stringify(responseText);
+
+  // 1. Remove Markdown code blocks (e.g. ```json ... ```)
+  let cleanText = responseText.replace(/```json\n?|\n?```/g, "").trim();
+  cleanText = cleanText.replace(/```\n?|\n?```/g, "").trim();
+
+  if (cleanText.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(cleanText);
+      return parsed.final_response || parsed.reply || parsed.content || parsed.message || parsed.answer || cleanText;
+    } catch (e) {
+      return cleanText;
+    }
+  }
+  return cleanText;
 }
