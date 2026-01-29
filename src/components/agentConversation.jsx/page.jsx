@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Avatar, AvatarFallback } from "./avatar";
+import ChatInput from "./input"; // <--- IMPORT YOUR COMPONENT
 
 // Hardcoded user ID to match ingestion and conversation service defaults
 const USER_ID = "U002"; 
@@ -10,181 +11,139 @@ export default function AgentConversation() {
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   
-  // Knowledge Base / Retrieval State
+  // Knowledge Base State
   const [documents, setDocuments] = useState([]);
   const [selectedDocIds, setSelectedDocIds] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   
-  const [input, setInput] = useState("");
+  // We removed 'input' state because ChatInput handles it internally now
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
   // 1. Fetch Agents and Knowledge Base Docs
- // Inside src/components/agentConversation.jsx/page.jsx
-
-useEffect(() => {
-  const fetchInitialData = async () => {
-    try {
-      // 1. Fetch Agents
-      const agentRes = await fetch("/agents");
-      if (agentRes.ok) {
-        const agentData = await agentRes.json();
-        setAgents(Array.isArray(agentData) ? agentData : []);
-        if (agentData.length > 0) setSelectedAgent(agentData[0]);
-      }
-
-      // 2. FETCH DOCUMENTS ON REFRESH - PLACE HERE
-      const docRes = await fetch(`/ingestion/docs/${USER_ID}`); 
-      if (docRes.ok) {
-        const docData = await docRes.json();
-        console.log("Docs received:", docData);
-        setDocuments(Array.isArray(docData) ? docData : []);
-      }
-    } catch (err) {
-      console.error("Error fetching initial data:", err);
-    }
-  };
-
-  fetchInitialData();
-}, []);
-
-useEffect(() => {
-  if (!selectedAgent) return;
-
-  const loadConversationHistory = async () => {
-    // 1. Reset UI state for the new agent
-    setMessages([]); 
-    setConversationId(null);
-    setSelectedDocIds([]); // Clear selected docs (moved here from your old handler)
-
-    try {
-      // 2. Fetch conversations for this user
-      const res = await fetch(`/conversations/user/${USER_ID}`);
-      
-      if (res.ok) {
-        const conversations = await res.json();
-        
-        // 3. Find the active conversation for this specific agent
-        // Handle both ID types just in case
-        const activeAgentId = selectedAgent.AgentID || selectedAgent._id;
-        
-        const match = conversations.find(
-          c => c.agentId === activeAgentId && c.status === "active"
-        );
-
-        if (match) {
-          setConversationId(match.conversationId);
-          
-          // 4. Format messages for the UI
-          const formattedMessages = match.messages
-            .filter(m => m.visibility === "user")
-            .map(m => ({
-              role: m.role === "assistant" ? "agent" : m.role,
-              content: m.content,
-              time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }));
-
-          setMessages(formattedMessages);
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const agentRes = await fetch("/agents");
+        if (agentRes.ok) {
+          const agentData = await agentRes.json();
+          setAgents(Array.isArray(agentData) ? agentData : []);
+          if (agentData.length > 0) setSelectedAgent(agentData[0]);
         }
+
+        const docRes = await fetch(`/ingestion/docs/${USER_ID}`); 
+        if (docRes.ok) {
+          const docData = await docRes.json();
+          setDocuments(Array.isArray(docData) ? docData : []);
+        }
+      } catch (err) {
+        console.error("Error fetching initial data:", err);
       }
-    } catch (err) {
-      console.error("Failed to load conversation history:", err);
-    }
-  };
+    };
+    fetchInitialData();
+  }, []);
 
-  loadConversationHistory();
-}, [selectedAgent]);
+  // 2. Load History on Agent Change
+  useEffect(() => {
+    if (!selectedAgent) return;
 
-  // 2. Handle Agent Selection - Reset conversation and messages
+    const loadConversationHistory = async () => {
+      setMessages([]); 
+      setConversationId(null);
+      setSelectedDocIds([]); 
+
+      try {
+        const res = await fetch(`/conversations/user/${USER_ID}`);
+        if (res.ok) {
+          const conversations = await res.json();
+          const activeAgentId = selectedAgent.AgentID || selectedAgent._id;
+          
+          const match = conversations.find(
+            c => c.agentId === activeAgentId && c.status === "active"
+          );
+
+          if (match) {
+            setConversationId(match.conversationId);
+            const formattedMessages = match.messages
+              .filter(m => m.visibility === "user")
+              .map(m => ({
+                role: m.role === "assistant" ? "agent" : m.role,
+                content: m.content,
+                time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }));
+            setMessages(formattedMessages);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load conversation history:", err);
+      }
+    };
+    loadConversationHistory();
+  }, [selectedAgent]);
+
   const handleAgentSelection = (agent) => {
     setSelectedAgent(agent);
-    setMessages([]); // Clear messages when switching agents
-    setConversationId(null); // Reset conversation ID for new agent
-    setSelectedDocIds([]); // Clear selected docs
   };
 
-  // 3. Document Selection Toggle
   const toggleDocSelection = (docId) => {
     setSelectedDocIds(prev => 
       prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
     );
   };
 
-  // 3. File Upload
-  // Inside src/components/agentConversation.jsx/page.jsx
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-const handleFileUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("userId", USER_ID);
 
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("userId", USER_ID);
+    setIsUploading(true);
+    try {
+      const res = await fetch("/ingestion/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const newDoc = await res.json();
+      setDocuments(prev => [...prev, { docId: newDoc.docId, docName: newDoc.docName }]);
+    } catch (err) {
+      alert("Error uploading file: " + err.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
-  setIsUploading(true);
-  try {
-    // SEND FILE TO BACKEND - PLACE HERE
-    const res = await fetch("/ingestion/upload", { 
-      method: "POST",
-      body: formData,
-    });
-
-    if (!res.ok) throw new Error("Upload failed");
-    
-    const newDoc = await res.json();
-    
-    // Update the UI list immediately
-    setDocuments(prev => [...prev, { docId: newDoc.docId, docName: newDoc.docName }]);
-  } catch (err) {
-    alert("Error uploading file: " + err.message);
-  } finally {
-    setIsUploading(false);
-  }
-};
-
-  // 4. Send Message with Retrieval Doc IDs
-  const handleSendMessage = async (e) => {
-    e?.preventDefault();
-    if (!input.trim() || !selectedAgent) return;
-
-    const userText = input;
-    setInput("");
+  // 3. Send Message (Updated to accept text directly from ChatInput)
+  const handleSendMessage = async (text) => {
+    if (!text.trim() || !selectedAgent) return;
 
     const userMsg = {
       role: "user",
-      content: userText,
+      content: text,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
+    
     setMessages(prev => [...prev, userMsg]);
     setIsTyping(true);
-    console.log("Sending message with docs:", selectedDocIds);
-    console.log ("Current conversationId:", conversationId);
-    console.log ("To agent:", selectedAgent.AgentID);
+
     try {
       const res = await fetch(`/conversations/${selectedAgent.AgentID}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: USER_ID,
-          message: userText,
+          message: text,
           conversationId: conversationId,
-          docIds: selectedDocIds, // Pass selected docs for retrieval
+          docIds: selectedDocIds,
           provider: "openai"
         })
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("API Error:", res.status, errorData);
-        throw new Error(`Failed to send message: ${res.status} - ${errorData.error || errorData.message}`);
-      }
-      const data = await res.json();
-      console.log("Response from server:", data);
+      if (!res.ok) throw new Error("Failed to send message");
       
-      if (data.conversationId) {
-        console.log("Setting conversation ID:", data.conversationId);
-        setConversationId(data.conversationId);
-      }
+      const data = await res.json();
+      
+      if (data.conversationId) setConversationId(data.conversationId);
+      
       if (data.reply) {
         setMessages(prev => [...prev, {
           role: "assistant",
@@ -199,7 +158,7 @@ const handleFileUpload = async (e) => {
     }
   };
 
-  // Auto-scroll logic
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
@@ -241,7 +200,7 @@ const handleFileUpload = async (e) => {
           <div className="max-h-40 overflow-y-auto space-y-1 mb-3 px-2">
             {documents.map((doc) => (
               <div 
-                key={doc.docId} // Ensure this is unique!
+                key={doc.docId} 
                 onClick={() => toggleDocSelection(doc.docId)}
                 className={`flex items-center gap-2 p-2 rounded-lg text-xs cursor-pointer transition-colors ${
                   selectedDocIds.includes(doc.docId) 
@@ -252,7 +211,6 @@ const handleFileUpload = async (e) => {
                 <span className="material-symbols-outlined text-sm">
                   {selectedDocIds.includes(doc.docId) ? "check_circle" : "description"}
                 </span>
-                {/* Use a fallback to debug if it's still empty */}
                 <span className="truncate flex-1">{doc.docName || "Untitled Document"}</span>
               </div>
             ))}
@@ -306,25 +264,10 @@ const handleFileUpload = async (e) => {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
-          <form onSubmit={handleSendMessage} className="flex gap-2 items-end max-w-4xl mx-auto bg-slate-50 dark:bg-slate-800 p-2 rounded-2xl border dark:border-slate-700">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={selectedAgent ? `Message ${selectedAgent.AgentName}...` : "Select an agent..."}
-              className="flex-1 max-h-32 min-h-[44px] py-3 px-2 bg-transparent border-none outline-none text-slate-800 dark:text-white text-sm resize-none"
-              rows={1}
-              disabled={!selectedAgent}
-            />
-            <button 
-              type="submit"
-              disabled={!input.trim() || !selectedAgent || isTyping}
-              className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all"
-            >
-              <span className="material-symbols-outlined">send</span>
-            </button>
-          </form>
-        </div>
+        <ChatInput 
+          onSendMessage={handleSendMessage} 
+          disabled={!selectedAgent || isTyping} 
+        />
       </section>
     </div>
   );
