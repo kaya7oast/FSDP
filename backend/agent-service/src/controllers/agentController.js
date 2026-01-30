@@ -90,11 +90,17 @@ export const getAgentbyId = async (req, res) => {
 // --- GET ALL AGENTS ---
 export const getAllAgents = async (req, res) => {
   try {
-    // OLD: const agents = await Agent.find(); 
+    const { userId } = req.query; // 1. Extract userId from query params
     
-    // NEW: Find everything where Status is NOT "deleted"
-    // $ne means "Not Equal"
-    const agents = await Agent.find({ Status: { $ne: "deleted" } });
+    // 2. Base filter: everything not deleted
+    let query = { Status: { $ne: "deleted" } };
+
+    // 3. If userId is present, filter by Owner
+    if (userId) {
+      query["Owner.UserID"] = userId;
+    }
+
+    const agents = await Agent.find(query);
     
     res.json(agents);
   } catch (err) {
@@ -139,11 +145,15 @@ export const deleteAgent = async (req, res) => {
 // Toggle Like
 export const toggleLike = async (req, res) => {
   try {
-    const { agentId } = req.params;
-    const { userId } = req.body; // In a real app, get this from auth middleware
-    const agent = await Agent.findOne({ AgentID: agentId });
+    const { agentId } = req.params; // receiving the _id from frontend
+    const { userId } = req.body; 
+
+    const agent = await Agent.findById(agentId); 
     
     if (!agent) return res.status(404).json({ error: "Agent not found" });
+
+    // Initialize Likes array if it doesn't exist
+    if (!agent.Likes) agent.Likes = [];
 
     const index = agent.Likes.indexOf(userId);
     if (index === -1) {
@@ -155,6 +165,7 @@ export const toggleLike = async (req, res) => {
     await agent.save();
     res.json({ likesCount: agent.Likes.length, isLiked: agent.Likes.includes(userId) });
   } catch (err) {
+    console.error("Like Error:", err.message); // Log the specific error
     res.status(500).json({ error: err.message });
   }
 };
@@ -184,7 +195,17 @@ export const publishAgent = async (req, res) => {
 // Get All Published Agents
 export const getPublishedAgents = async (req, res) => {
   try {
+    // 1. fetch all published & active agents
     const agents = await Agent.find({ isPublished: true, Status: "Active" });
+
+    // 2. sorting them by Likes count (Descending: Highest to Lowest)
+
+    agents.sort((a, b) => {
+      const likesA = a.Likes?.length || 0;
+      const likesB = b.Likes?.length || 0;
+      return likesB - likesA; 
+    });
+
     res.json(agents);
   } catch (err) {
     res.status(500).json({ error: err.message });
