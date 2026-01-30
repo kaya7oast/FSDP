@@ -8,7 +8,7 @@ const agentSchema = new mongoose.Schema({
   Region: String,
   isPublished: { type: Boolean, default: false },
   PublishedDescription: { type: String, default: "" },
-  Likes: [{ type: String }],
+  Likes: { type: [String], default: [] },
   Saves: [{ type: String }],
 
   Personality: {

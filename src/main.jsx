@@ -7,7 +7,6 @@ import Layout from './components/Layout';
 import AgentDashboard from './components/agentDashboard';
 import AgentBuilder from './components/agentBuilder';
 import AgentConversation from './components/agentConversation.jsx/page';
-// Change this import if you renamed the file to Popularity.jsx
 import PopularityPage from './components/Popularity.jsx'; 
 import LoginPage from './components/login.jsx';
 import SignupPage from './components/signup.jsx';
