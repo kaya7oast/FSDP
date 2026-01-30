@@ -35,6 +35,7 @@ export default function Sidebar() {
         <nav className="space-y-2">
           <NavItem to="/dashboard" icon="dashboard" label="Agents" />
           <NavItem to="/popularity" icon="auto_awesome" label="Popularity" />
+          <NavItem to="/visualisation" icon="image" label="Visualisation" />
           <NavItem to="/chats" icon="forum" label="Conversations" />
           <NavItem to="/builder" icon="smart_toy" label="Agent Builder" />
         </nav>
