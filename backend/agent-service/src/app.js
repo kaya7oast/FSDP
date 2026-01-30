@@ -4,7 +4,6 @@ import cors from "cors";
 import connectDB from "../dbConfig.js";
 import { upload } from "../src/middlewares/upload.js";
 import { uploadAndConvertToWord } from "../src/controllers/fileController.js";
-import protect from "./middlewares/authMiddleware.js";
 
 import {
   getAllAgents,
@@ -13,7 +12,6 @@ import {
   deleteAgent,
   updateAgent,
   getAgentbyId,
-  getAgentsByUserId,
 } from "./controllers/agentController.js";
 
 dotenv.config();
@@ -33,20 +31,12 @@ connectDB();
 // app.post("/agents/:agentId/delete", deleteAgent);
 // app.get("/agents/:agentId", getAgentbyId);
 
-// app.get("/", getAllAgents);
-// app.get("/active", getActiveAgents);
-// app.post("/", addAgent);
-// app.put("/:agentId", updateAgent);
-// app.post("/:agentId/delete", deleteAgent);
-// app.get("/:agentId", getAgentbyId);
-
-app.get("/", protect, getAllAgents);
-  app.get("/active", getActiveAgents);
-  app.post("/", protect, addAgent);
-  app.put("/:agentId", protect, updateAgent);
-  app.post("/:agentId/delete", protect, deleteAgent);
-  app.get("/:agentId", protect, getAgentbyId);
-  app.get("/user/:userId", protect, getAgentsByUserId);
+app.get("/", getAllAgents);
+app.get("/active", getActiveAgents);
+app.post("/", addAgent);
+app.put("/:agentId", updateAgent);
+app.post("/:agentId/delete", deleteAgent);
+app.get("/:agentId", getAgentbyId);
 
 //test
 app.get("/test", (req, res) => {
