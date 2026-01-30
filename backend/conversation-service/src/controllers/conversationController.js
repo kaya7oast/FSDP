@@ -358,6 +358,12 @@ export const getConversation = async (req, res) => {
   try {
     const conversation = await Conversation.findOne({ conversationId });
     if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+    
+    // Ensure authenticated user can only access their own conversation
+    if (conversation.userId !== req.user.userId) {
+      return res.status(403).json({ error: "Unauthorized: Cannot access other users' conversations" });
+    }
+    
     if (conversation.status === "deleted") return res.status(410).json({ error: "Conversation deleted" });
     
     // Filter out system prompts and internal messages before sending to client
@@ -377,6 +383,12 @@ export const getConversation = async (req, res) => {
 // Get all conversations for a user
 export const getAllConversations = async (req, res) => {
   const { userId } = req.params;
+  
+  // Ensure authenticated user can only access their own conversations
+  if (req.user.userId !== userId) {
+    return res.status(403).json({ error: "Unauthorized: Cannot access other users' conversations" });
+  }
+  
   try {
     const conversations = await Conversation.find({ userId, status: "active" });
     
@@ -399,12 +411,19 @@ export const getAllConversations = async (req, res) => {
 export const deleteConversation = async (req, res) => {
   const { conversationId } = req.params;
   try {
-    const conversation = await Conversation.findOneAndUpdate(
+    const conversation = await Conversation.findOne({ conversationId });
+    if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+    
+    // Ensure authenticated user can only delete their own conversation
+    if (conversation.userId !== req.user.userId) {
+      return res.status(403).json({ error: "Unauthorized: Cannot delete other users' conversations" });
+    }
+    
+    await Conversation.findOneAndUpdate(
       { conversationId },
       { status: "deleted" },
       { new: true }
     );
-    if (!conversation) return res.status(404).json({ error: "Conversation not found" });
     res.json({ message: "Conversation deleted", conversation });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -419,6 +438,11 @@ export const summarizeConversation = async (req, res) => {
   try {
     const conversation = await Conversation.findOne({ conversationId });
     if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+    
+    // Ensure authenticated user can only summarize their own conversation
+    if (conversation.userId !== req.user.userId) {
+      return res.status(403).json({ error: "Unauthorized: Cannot summarize other users' conversations" });
+    }
 
     const aiResponse = await axios.post(`${AI_SERVICE_URL}/generate`, {
       provider,
@@ -439,14 +463,7 @@ export const summarizeConversation = async (req, res) => {
   }
 };
 
-export const allConversations = async (req, res) => {
-  try {
-    const conversations = await Conversation.find({});
-    res.json(conversations);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+
 
 
 async function retrieveContext({ userId, docIds, query }) {

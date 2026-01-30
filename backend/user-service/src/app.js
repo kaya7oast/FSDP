@@ -7,6 +7,7 @@ import {
   loginUser,
   guestLogin,
   getUserProfile,
+  authMe,
 } from "./controllers/userController.js";
 
 dotenv.config();
@@ -27,6 +28,7 @@ app.post("/guest", guestLogin);
 app.post("/register", registerUser);
 app.post("/login", loginUser);
 app.get("/profile", getUserProfile);
+app.get("/auth/me", authMe);
 
 // Test route
 app.get("/test", (req, res) => {
