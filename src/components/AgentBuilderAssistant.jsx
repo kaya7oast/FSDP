@@ -129,6 +129,8 @@ const AgentBuilderAssistant = ({ onUpdateForm, onComplete }) => {
          startSentryMode();
       }
     };
+  };
+
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);

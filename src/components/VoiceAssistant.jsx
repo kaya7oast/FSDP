@@ -42,8 +42,6 @@ const VoiceAssistant = () => {
     // B. Auto-wake on reload
     if (isSystemActive.current) startSentryMode();
 
-    return () => fullStop();
-  }, [navigate, token]);
     // C. SUPERVISOR LISTENER (The "Pain Signal")
     const handleSupervisorSignal = (event) => {
       const { message, type } = event.detail;
@@ -71,7 +69,7 @@ const VoiceAssistant = () => {
       fullStop();
       window.removeEventListener('ada:supervisor', handleSupervisorSignal);
     };
-  }, []);
+  }, [navigate, token]);
 
   // --- 2. CONTROLS ---
   const toggleSystem = () => {
