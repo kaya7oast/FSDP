@@ -176,6 +176,32 @@ export default function AgentConversation() {
     );
   };
 
+  const handleDeleteDocument = async (e, docId) => {
+    e.stopPropagation();
+    
+    if (!userId || !docId) return;
+
+    if (!confirm("Are you sure you want to delete this document?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/ingestion/docs/${userId}/${docId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+
+      if (!res.ok) throw new Error("Failed to delete document");
+
+      // Remove from UI
+      setDocuments(prev => prev.filter(doc => doc.docId !== docId));
+      setSelectedDocIds(prev => prev.filter(id => id !== docId));
+      alert("Document deleted successfully");
+    } catch (err) {
+      console.error("Error deleting document:", err);
+      alert("Error deleting document: " + err.message);
+    }
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -323,7 +349,7 @@ export default function AgentConversation() {
               <div 
                 key={doc.docId} 
                 onClick={() => toggleDocSelection(doc.docId)}
-                className={`flex items-center gap-2 p-2 rounded-lg text-xs cursor-pointer transition-colors ${
+                className={`flex items-center gap-2 p-2 rounded-lg text-xs cursor-pointer transition-colors group ${
                   selectedDocIds.includes(doc.docId) 
                     ? "bg-white dark:bg-slate-800 border border-violet-200 text-violet-700 dark:text-violet-300 shadow-sm" 
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-200/50"
@@ -333,6 +359,13 @@ export default function AgentConversation() {
                   {selectedDocIds.includes(doc.docId) ? "check_box" : "check_box_outline_blank"}
                 </span>
                 <span className="truncate flex-1">{doc.docName || "Untitled Document"}</span>
+                <button 
+                  onClick={(e) => handleDeleteDocument(e, doc.docId)}
+                  className="w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20 text-red-500 hover:text-red-600"
+                  title="Delete document"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
               </div>
             ))}
           </div>
