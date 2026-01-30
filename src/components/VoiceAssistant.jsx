@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Mic, Activity, Trash2, Moon, Zap } from 'lucide-react';
+import { X, Mic, Activity, Trash2, Moon, Zap, MessageSquare } from 'lucide-react';
 
 const VoiceAssistant = () => {
   // --- STATE ---
@@ -20,7 +20,7 @@ const VoiceAssistant = () => {
   const isProcessingWakeWord = useRef(false);
   const watchdogTimer = useRef(null);
 
-  // --- 1. SETUP & EVENT LISTENER (The Nervous System) ---
+  // --- 1. SETUP & EVENT LISTENER ---
   useEffect(() => {
     // A. Load Voice
     const loadVoices = () => {
@@ -34,21 +34,20 @@ const VoiceAssistant = () => {
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
-    // B. Auto-wake on reload
+    // B. Auto-wake
     if (isSystemActive.current) startSentryMode();
 
-    // C. SUPERVISOR LISTENER (The "Pain Signal")
+    // C. SUPERVISOR LISTENER
     const handleSupervisorSignal = (event) => {
       const { message, type } = event.detail;
-      console.log(`⚡ Nervous System Signal: [${type}] ${message}`);
+      console.log(`⚡ Signal: [${type}] ${message}`);
 
       if (type === 'CRITICAL' || type === 'WARNING') {
-        // Stop listening, stop speaking
         if (recognitionRef.current) recognitionRef.current.abort();
         synthRef.current.cancel();
         
-        // Force Speak
         setMode("speaking");
+        setAssistantReply(message); // Show the warning text
         speak(message, () => {
            if (isSystemActive.current) startSentryMode();
         });
@@ -59,12 +58,11 @@ const VoiceAssistant = () => {
 
     window.addEventListener('ada:supervisor', handleSupervisorSignal);
 
-    // D. Cleanup
     return () => {
       fullStop();
       window.removeEventListener('ada:supervisor', handleSupervisorSignal);
     };
-  }, [navigate]);
+  }, []);
 
   // --- 2. CONTROLS ---
   const toggleSystem = () => {
@@ -82,23 +80,22 @@ const VoiceAssistant = () => {
 
   const fullStop = () => {
     if (recognitionRef.current) {
-      recognitionRef.current.onend = null;
-      recognitionRef.current.onresult = null;
+      recognitionRef.current.onend = null; // Prevent loop
       recognitionRef.current.abort();
-      recognitionRef.current = null;
     }
     synthRef.current.cancel();
     if (watchdogTimer.current) clearTimeout(watchdogTimer.current);
     setIsMicAlive(false);
   };
 
-  // --- 3. SENTRY MODE (Listening for "Ada") ---
+  // --- 3. MODES ---
   const startSentryMode = () => {
     if (!isSystemActive.current) return;
     fullStop(); 
     isProcessingWakeWord.current = false;
     setMode("sentry");
     setTranscript("");
+    setAssistantReply(""); // Clear old text
 
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) return;
@@ -128,7 +125,6 @@ const VoiceAssistant = () => {
     try { recognition.start(); } catch(e) {}
   };
 
-  // --- 4. COMMAND MODE ---
   const startCommandMode = () => {
     if (!isSystemActive.current) return;
     fullStop(); 
@@ -144,7 +140,8 @@ const VoiceAssistant = () => {
     recognition.onstart = () => setIsMicAlive(true);
     recognition.onend = () => {
       setIsMicAlive(false);
-      if (isSystemActive.current && mode === "listening" && !transcript) startSentryMode();
+      // If we didn't hear anything, go back to sentry
+      if (isSystemActive.current && mode === "listening") startSentryMode();
     };
 
     recognition.onresult = (event) => {
@@ -156,30 +153,30 @@ const VoiceAssistant = () => {
     try { recognition.start(); } catch(e) {}
   };
 
-  // --- 5. INTELLIGENCE (The Brain Upgrade) ---
+  // --- 4. INTELLIGENCE ---
   const handleSmartCommand = async (command) => {
     if (!command.trim()) { startSentryMode(); return; }
     fullStop();
     setMode("processing");
 
     try {
-      console.log("🎤 Sending:", command);
+      // 1. GET TOKEN
+      const token = localStorage.getItem("token"); 
 
       const systemPrompt = `
         You are Ada, the System Interface.
         YOUR JOB: Execute user commands. Return strict JSON.
         
-        KNOWN ROUTES (Use EXACT paths):
-        - "Home" / "Dashboard" -> "/dashboard"
-        - "Builder" / "Create" -> "/builder"
-        - "Chats" / "Conversations" -> "/chats"
+        KNOWN ROUTES:
+        - "Home" -> "/dashboard"
+        - "Builder" -> "/builder"
+        - "Chats" -> "/chats"
         - "Settings" -> "/settings"
 
         CAPABILITIES:
         1. NAVIGATE: Switch screens.
         2. THEME: Switch "dark" or "light".
         3. DELETE: Remove an agent by name.
-        4. ANALYSIS: If asked "What can you do?", list these capabilities briefly.
 
         STRICT RESPONSE FORMAT (JSON ONLY):
         {
@@ -187,25 +184,25 @@ const VoiceAssistant = () => {
           "route": "/path",
           "theme": "dark" | "light",
           "target": "Agent Name",
-          "reply": "Short, proffesional yet friendly confirmation."
+          "reply": "Short confirmation."
         }
         USER SAID: "${command}"
       `;
 
-      // FIX: Use the correct endpoint /ai/generate
       const res = await fetch('/ai/generate', { 
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({ provider: 'openai', message: systemPrompt })
       });
 
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
       
-      // Universal Extraction
       let rawText = data.response || data.reply || data.text || "{}";
       if (typeof rawText === 'object') rawText = JSON.stringify(rawText);
-      
       let cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "");
       const first = cleanJson.indexOf('{');
       const last = cleanJson.lastIndexOf('}');
@@ -214,7 +211,6 @@ const VoiceAssistant = () => {
       let result = {};
       try { result = JSON.parse(cleanJson); } catch (e) { result = { reply: "Command unrecognized." }; }
 
-      // Logic Mapping
       let action = (result.action || "chat").toLowerCase();
       if (action === "navigation") action = "navigate";
 
@@ -241,8 +237,8 @@ const VoiceAssistant = () => {
         navigate(route);
         speak(reply, () => setTimeout(startSentryMode, 500));
       } 
-      else if (action === "delete" && (result.target || result.agent || result.name || result.item)) {
-        await performVoiceDelete(result.target || result.agent || result.name || result.item);
+      else if (action === "delete" && result.target) {
+        await performVoiceDelete(result.target);
       } 
       else {
         speak(reply, () => setTimeout(startSentryMode, 500));
@@ -256,17 +252,21 @@ const VoiceAssistant = () => {
 
   const performVoiceDelete = async (targetName) => {
      try {
-        const listRes = await fetch('/agents');
+        const token = localStorage.getItem("token");
+        const listRes = await fetch('/agents', {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
         const rawData = await listRes.json();
         const agents = Array.isArray(rawData) ? rawData : (rawData.agents || []);
         
         const match = agents.find(a => (a.AgentName || "").toLowerCase().includes(targetName.toLowerCase()));
 
         if (match) {
-           await fetch(`/agents/${match._id}/delete`, { method: 'POST' });
-           speak(`Deleted ${match.AgentName}.`, () => {
-              window.location.reload(); 
+           await fetch(`/agents/${match._id}/delete`, { 
+               method: 'POST',
+               headers: token ? { Authorization: `Bearer ${token}` } : {}
            });
+           speak(`Deleted ${match.AgentName}.`, () => window.location.reload());
         } else {
            speak(`I couldn't find ${targetName}.`, () => startSentryMode());
         }
@@ -284,7 +284,7 @@ const VoiceAssistant = () => {
     if (adaVoiceRef.current) utterance.voice = adaVoiceRef.current;
     utterance.rate = 1.1;
 
-    const safetyTime = (text.length * 100) + 1000;
+    const safetyTime = (text.length * 100) + 2000; // Extra safety buffer
     
     const handleComplete = () => {
       if (watchdogTimer.current) clearTimeout(watchdogTimer.current);
@@ -292,14 +292,13 @@ const VoiceAssistant = () => {
     };
 
     utterance.onend = handleComplete;
-    watchdogTimer.current = setTimeout(() => {
-        handleComplete();
-    }, safetyTime);
+    // Fallback if browser speech engine hangs
+    watchdogTimer.current = setTimeout(handleComplete, safetyTime);
 
     synthRef.current.speak(utterance);
   };
 
-  // --- RENDER ---
+  // --- RENDER (UPDATED: Non-Blocking "Toast") ---
   if (mode === "offline") {
     return (
       <button onClick={toggleSystem} className="fixed bottom-6 right-6 z-50 bg-indigo-600 text-white p-4 rounded-full shadow-xl hover:scale-110 transition-transform"><Mic size={24} /></button>
@@ -308,22 +307,41 @@ const VoiceAssistant = () => {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
-        <div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded flex items-center gap-2">
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 pointer-events-none">
+        {/* STATUS BADGE */}
+        <div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded flex items-center gap-2 pointer-events-auto">
            <div className={`w-2 h-2 rounded-full ${isMicAlive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
            <span>{mode.toUpperCase()}</span>
         </div>
-        <button onClick={toggleSystem} className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all border-2 ${mode === 'sentry' ? "bg-indigo-600 border-indigo-400" : "bg-green-500 border-green-400 animate-pulse"}`}>
+        
+        {/* MAIN BUTTON */}
+        <button onClick={toggleSystem} className={`pointer-events-auto w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all border-2 ${mode === 'sentry' ? "bg-indigo-600 border-indigo-400" : "bg-green-500 border-green-400 animate-pulse"}`}>
            {mode === 'sentry' ? <Mic size={24} className="text-white" /> : <Activity size={24} className="text-white animate-bounce"/>}
         </button>
       </div>
+
+      {/* NON-BLOCKING UI OVERLAY (Floating above the button) */}
       {(mode === "listening" || mode === "processing" || mode === "speaking") && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-700 animate-in zoom-in-95">
-             <div className="p-8 text-center min-h-[150px] flex flex-col items-center justify-center">
-              <p className="text-xl text-slate-800 dark:text-slate-100 font-medium mb-4">"{transcript || assistantReply}"</p>
-              {assistantReply.toLowerCase().includes("delet") && <Trash2 className="text-red-500 mb-2" size={32} />}
-              {mode === "processing" && <Zap className="text-yellow-500 mb-2 animate-pulse" size={32} />}
+        <div className="fixed bottom-24 right-6 z-40 w-80 pointer-events-none">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-5 pointer-events-auto animate-in slide-in-from-bottom-10 fade-in duration-300 relative">
+             
+             {/* MANUAL CLOSE BUTTON (Fixes "Does not go away" issue) */}
+             <button 
+                onClick={() => { synthRef.current.cancel(); startSentryMode(); }} 
+                className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-500 transition-colors"
+                title="Dismiss"
+             >
+                <X size={16} />
+             </button>
+
+             <div className="text-center flex flex-col items-center justify-center gap-3">
+                {mode === "processing" && <Zap className="text-yellow-500 animate-pulse" size={24} />}
+                {assistantReply.toLowerCase().includes("delet") && <Trash2 className="text-red-500" size={24} />}
+                {mode === "listening" && <MessageSquare className="text-blue-500 animate-bounce" size={24} />}
+                
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-relaxed">
+                    "{transcript || assistantReply || "..."}"
+                </p>
              </div>
           </div>
         </div>
