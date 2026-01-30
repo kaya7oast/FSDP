@@ -145,11 +145,15 @@ export const deleteAgent = async (req, res) => {
 // Toggle Like
 export const toggleLike = async (req, res) => {
   try {
-    const { agentId } = req.params;
-    const { userId } = req.body; // In a real app, get this from auth middleware
-    const agent = await Agent.findOne({ AgentID: agentId });
+    const { agentId } = req.params; // receiving the _id from frontend
+    const { userId } = req.body; 
+
+    const agent = await Agent.findById(agentId); 
     
     if (!agent) return res.status(404).json({ error: "Agent not found" });
+
+    // Initialize Likes array if it doesn't exist
+    if (!agent.Likes) agent.Likes = [];
 
     const index = agent.Likes.indexOf(userId);
     if (index === -1) {
@@ -161,6 +165,7 @@ export const toggleLike = async (req, res) => {
     await agent.save();
     res.json({ likesCount: agent.Likes.length, isLiked: agent.Likes.includes(userId) });
   } catch (err) {
+    console.error("Like Error:", err.message); // Log the specific error
     res.status(500).json({ error: err.message });
   }
 };

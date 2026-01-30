@@ -11,7 +11,8 @@ const PopularityPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   
-  const userId = localStorage.getItem('userId'); 
+  // Ensure we have a valid User ID. If not found, use a temporary one for testing.
+  const userId = localStorage.getItem('userId') || "U123"; 
 
   useEffect(() => {
     fetchData();
@@ -36,37 +37,40 @@ const PopularityPage = () => {
     }
   };
 
-  const handleLike = async (agentId) => {
+  // --- LIKE HANDLER ---
+  const handleLike = async (id) => {
+    if (!userId) {
+      alert("Please log in to like agents.");
+      return;
+    }
     try {
-      await fetch(`${API_BASE}/toggleLike/${agentId}`, { 
+      // Use the ID passed to this function
+      const res = await fetch(`${API_BASE}/toggleLike/${id}`, { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }) 
       });
-      fetchData(); 
-    } catch (err) { console.error(err); }
+      if (res.ok) fetchData(); 
+    } catch (err) { console.error("Like failed:", err); }
   };
 
-  // --- NEW: Add Agent to My Dashboard ---
   const handleAddAgent = async (originalAgent) => {
     if (!confirm(`Add "${originalAgent.AgentName}" to your dashboard?`)) return;
 
     try {
-      // 1. Prepare the payload (Cloning the agent)
       const payload = {
         ...originalAgent,
-        _id: undefined, // Important: Remove original ID so Mongo creates a new one
-        AgentID: undefined, // Remove custom ID
+        _id: undefined, 
+        AgentID: undefined, 
         AgentName: `${originalAgent.AgentName} (Copy)`,
-        Owner: { UserID: userId, UserName: "Me" }, // Set YOU as the owner
-        isPublished: false, // Reset published status
+        Owner: { UserID: userId, UserName: "Me" }, 
+        isPublished: false, 
         Status: "Active",
-        Likes: [], // Reset likes
-        Views: 0   // Reset views
+        Likes: [], 
+        Views: 0   
       };
 
-      // 2. Send to Backend
-      const res = await fetch(API_BASE, { // POST /agents
+      const res = await fetch(API_BASE, { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -135,12 +139,12 @@ const PopularityPage = () => {
                 
                 {activeTab === 'discover' ? (
                   <AgentCard2 
-                    agent={agent} 
-                    currentUserId={userId}
-                    isOwner={false} // You are NOT the owner in discover tab
-                    onLike={() => handleLike(agent.AgentID)}
-                    onAdd={() => handleAddAgent(agent)} // <--- Pass the add function
-                  />
+                agent={agent} 
+                currentUserId={userId}
+                isOwner={false} 
+                onLike={() => handleLike(agent._id)} 
+                onAdd={() => handleAddAgent(agent)}
+              />
                 ) : (
                   <AgentCard 
                     agent={agent}
