@@ -39,11 +39,12 @@ const AgentBuilder = () => {
 
   const handleSave = async () => {
     try {
-      // 1. VISUAL EXTRACTION (Same as before)
+      // 1. SETUP: Variables
       let visualName = formData.AgentName;
       let visualCapabilities = [];
-      let identityInstructions = [];
-      let outputRules = [];
+      let identityInstructions = []; 
+      let outputRules = [];          
+      let customInstructions = [];   // <--- NEW: Array for Custom Nodes
 
       if (workflowData?.visual?.nodes) {
         const nodes = workflowData.visual.nodes;
@@ -62,6 +63,65 @@ const AgentBuilder = () => {
       }
 
       // 2. VALIDATION (The Supervisor)
+            visualDesc = coreNode.data.content;
+
+            // B. Get Connected Node IDs
+            const connectedNodeIds = new Set();
+            edges.forEach(edge => {
+                if (edge.source === coreNode.id) connectedNodeIds.add(edge.target);
+                if (edge.target === coreNode.id) connectedNodeIds.add(edge.source);
+            });
+
+            // C. Loop through ALL connected nodes
+            nodes.forEach(n => {
+                if (connectedNodeIds.has(n.id)) {
+                    const cat = n.data?.category || '';
+                    const label = n.data?.label || '';
+                    const content = n.data?.content || '';
+
+                    // -- KNOWLEDGE --
+                    if (cat.includes('Knowledge') || cat.includes('Tool') || cat.includes('Capability')) {
+                        visualCapabilities.push(label);
+                    }
+
+                    // -- IDENTITY --
+                    else if (cat.includes('Identity') || cat.includes('Persona') || cat.includes('Role')) {
+                        identityInstructions.push(`${label}: ${content}`);
+                    }
+
+                    // -- OUTPUT --
+                    else if (cat.includes('Output') || cat.includes('Format') || cat.includes('Style')) {
+                        outputRules.push(`${label}: ${content}`);
+                    }
+
+                    // -- NEW: CUSTOM / OTHERS --
+                    // If it doesn't match above, we treat it as custom context
+                    else {
+                        customInstructions.push(`[${label}]: ${content}`);
+                    }
+                }
+            });
+        }
+      }
+
+      // 3. BUILD THE SYSTEM PROMPT
+      // We combine manual prompt + identity + output rules
+      let finalSystemPrompt = formData.Personality.SystemPrompt || "";
+      
+      if (identityInstructions.length > 0) {
+          finalSystemPrompt += "\n\n### IDENTITY & PERSONA\n" + identityInstructions.join('\n');
+      }
+      if (outputRules.length > 0) {
+          finalSystemPrompt += "\n\n### OUTPUT FORMATTING RULES\n" + outputRules.join('\n');
+      }
+      
+      // --- NEW: Append Custom Instructions ---
+      if (customInstructions.length > 0) {
+          finalSystemPrompt += "\n\n### ADDITIONAL CONTEXT & RULES\n" + customInstructions.join('\n');
+      }
+      // ---------------------------------------
+
+      // 4. VALIDATION
       if (!visualName || visualName.trim() === "" || visualName === "Agent Persona") {
         window.dispatchEvent(new CustomEvent('ada:supervisor', { 
             detail: { type: 'WARNING', message: "I cannot deploy this agent. It needs a name." } 
@@ -82,9 +142,12 @@ const AgentBuilder = () => {
           UserID: localStorage.getItem('userId'),
           UserName: localStorage.getItem('username')
         },
-        Capabilities: typeof formData.Capabilities === 'string' 
-          ? formData.Capabilities.split(',').map(item => item.trim()).filter(i => i)
-          : formData.Capabilities,
+        Capabilities: finalCapabilities,
+        // Update System Prompt
+        Personality: {
+            ...formData.Personality,
+            SystemPrompt: finalSystemPrompt
+        },
         WorkflowVisual: workflowData
       };
 
@@ -101,7 +164,8 @@ const AgentBuilder = () => {
         }));
         navigate('/dashboard');
       } else {
-        throw new Error("Backend rejected the save.");
+        const err = await response.json();
+        alert('Error: ' + (err.error || err.message || 'Failed to save'));
       }
     } catch (error) {
       console.error(error);
