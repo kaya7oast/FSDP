@@ -29,10 +29,50 @@ const VISUAL_TIPS = [
   }
 ];
 
+const getProxyUrl = (originalUrl) => `/ai/proxy-image?url=${encodeURIComponent(originalUrl)}`;
+
 export default function Visualisation() {
   const [prompt, setPrompt] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  // Function to download the image
+const handleDownload = async () => {
+  if (!imageUrl) return;
+  try {
+    // Fetch from backend proxy instead of directly from OpenAI
+    const response = await fetch(getProxyUrl(imageUrl));
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `ai-concept-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    console.error("Download failed", err);
+  }
+};
+
+// Function to copy image to clipboard
+const handleCopy = async () => {
+  if (!imageUrl) return;
+  try {
+    // Fetch from your backend proxy
+    const response = await fetch(getProxyUrl(imageUrl));
+    const blob = await response.blob();
+    
+    const item = new ClipboardItem({ [blob.type]: blob });
+    await navigator.clipboard.write([item]);
+    alert("Image copied to clipboard!");
+  } catch (err) {
+    console.error("Copy failed", err);
+    alert("Copy failed. Try using Download instead.");
+  }
+};
 
   const handleGenerate = async () => {
     if (!prompt) return;
@@ -51,6 +91,12 @@ export default function Visualisation() {
       setLoading(false);
     }
   };
+const handleKeyDown = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault(); // Prevents accidental newlines or form submissions
+    handleGenerate();
+  }
+};
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -68,12 +114,13 @@ export default function Visualisation() {
       {/* Input Area */}
       <div className="flex gap-4 mb-8 bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
         <input 
-          type="text"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Describe the image you want to create..."
-          className="flex-1 px-4 py-3 bg-transparent dark:text-white outline-none"
-        />
+            type="text"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown} // Add this line
+            placeholder="Describe an agent concept or workflow..."
+            className="flex-1 px-4 py-3 bg-transparent dark:text-white outline-none"
+            />
         <button 
           onClick={handleGenerate}
           disabled={loading}
@@ -88,10 +135,29 @@ export default function Visualisation() {
 
       {/* Result Area */}
       {imageUrl && (
-        <div className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-500">
-          <img src={imageUrl} alt="AI Generated" className="w-full h-auto" />
-        </div>
-      )}
+  <div className="mt-8">
+    <div className="flex justify-end gap-2 mb-4">
+      <button 
+        onClick={handleCopy}
+        className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-medium text-sm"
+      >
+        <span className="material-symbols-outlined text-lg">content_copy</span>
+        Copy
+      </button>
+      <button 
+        onClick={handleDownload}
+        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium text-sm"
+      >
+        <span className="material-symbols-outlined text-lg">download</span>
+        Download
+      </button>
+    </div>
+    
+    <div className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800">
+      <img src={imageUrl} alt="AI Generated Concept" className="w-full h-auto" />
+    </div>
+  </div>
+)}
     </div>
   );
 }

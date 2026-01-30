@@ -2,7 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import { generateAIResponse } from "./generateAIResponse.js";
 import { generateAIImage } from "./generateImage.js"; 
-
+import axios from "axios";
 
 
 dotenv.config();
@@ -25,6 +25,7 @@ app.get("/test", (req, res) => {
   res.send("AI Service test route is working");
 });
 
+
 app.post("/generate-image", async (req, res) => {
   const { prompt } = req.body;
   try {
@@ -32,6 +33,17 @@ app.post("/generate-image", async (req, res) => {
     res.json({ imageUrl });
   } catch (err) {
     res.status(500).json({ error: err.message || "Image Service error" });
+  }
+});
+app.get("/proxy-image", async (req, res) => {
+  const { url } = req.query;
+  try {
+    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const contentType = response.headers['content-type'];
+    res.set("Content-Type", contentType);
+    res.send(response.data);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to proxy image" });
   }
 });
 
