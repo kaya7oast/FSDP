@@ -162,13 +162,19 @@ export const toggleLike = async (req, res) => {
 // Publish Agent
 export const publishAgent = async (req, res) => {
   try {
-    const { agentId } = req.params;
+    const { agentId } = req.params; // This receives the Mongo ID (e.g. "64f...") from frontend
     const { description } = req.body;
-    const agent = await Agent.findOneAndUpdate(
-      { AgentID: agentId },
+
+    const agent = await Agent.findByIdAndUpdate(
+      agentId,
       { isPublished: true, PublishedDescription: description },
       { new: true }
     );
+
+    if (!agent) {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+
     res.json(agent);
   } catch (err) {
     res.status(500).json({ error: err.message });
