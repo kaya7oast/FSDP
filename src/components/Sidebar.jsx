@@ -34,7 +34,7 @@ export default function Sidebar() {
         {/* Navigation Links */}
         <nav className="space-y-2">
           <NavItem to="/dashboard" icon="dashboard" label="Agents" />
-          <NavItem to="/analytics" icon="monitoring" label="Analytics" /> {/* New Link */}
+          <NavItem to="/popularity" icon="auto_awesome" label="Popularity" />
           <NavItem to="/chats" icon="forum" label="Conversations" />
           <NavItem to="/builder" icon="smart_toy" label="Agent Builder" />
         </nav>
