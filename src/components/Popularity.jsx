@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import AgentCard from "./AgentCard"; 
+import AgentCard2 from "./AgentCard2"; // <--- IMPORT THE NEW CARD
 
 const API_BASE = "/agents";
 
 const PopularityPage = () => {
   const [activeTab, setActiveTab] = useState('discover');
-  const [agents, setAgents] = useState([]); // Your agents
-  const [feed, setFeed] = useState([]);     // Global published agents
+  const [agents, setAgents] = useState([]); 
+  const [feed, setFeed] = useState([]);     
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   
-  const userId = "U123"; // Logic from your Dashboard
+  const userId = "U123"; // Replace with real auth logic
 
   useEffect(() => {
     fetchData();
@@ -24,7 +24,6 @@ const PopularityPage = () => {
         const data = await res.json();
         setFeed(Array.isArray(data) ? data : []);
       } else {
-        // Fetching your agents exactly like the Dashboard
         const res = await fetch(`${API_BASE}?userId=${userId}`);
         const data = await res.json();
         setAgents(Array.isArray(data) ? data : []);
@@ -37,15 +36,14 @@ const PopularityPage = () => {
   };
 
   const handleLike = async (agentId) => {
-  try {
-    // Change the URL to include the ID as a parameter to match your controller
-    await fetch(`${API_BASE}/toggleLike/${agentId}`, { 
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }) // Pass only userId in the body
-    });
-    fetchData(); 
-  } catch (err) { console.error(err); }
+    try {
+      await fetch(`${API_BASE}/toggleLike/${agentId}`, { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }) 
+      });
+      fetchData(); // Refresh to show new like count
+    } catch (err) { console.error(err); }
   };
 
   const handlePublish = async (agentId, mongoId) => {
@@ -62,7 +60,7 @@ const PopularityPage = () => {
     } catch (err) { console.error(err); }
   };
 
-  // Logic copied from your Dashboard
+  // Filter items based on search
   const filteredItems = (activeTab === 'discover' ? feed : agents).filter((agent) => {
     if (agent.Status?.toLowerCase() === "deleted") return false;
     const name = (agent.AgentName || "Unnamed").toLowerCase();
@@ -81,6 +79,7 @@ const PopularityPage = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-8 py-8">
+        {/* Search Bar */}
         <div className="mb-8 relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
           <input 
@@ -98,36 +97,29 @@ const PopularityPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredItems.map((agent) => (
               <div key={agent._id} className="relative group">
-                <AgentCard 
+                <AgentCard2 
                   agent={agent} 
-                  // Customizing the card actions based on the tab
+                  
+                  // --- NEW PROPS FOR CARD 2 ---
+                  currentUserId={userId}
+                  isOwner={activeTab === 'publish'} // Only owner in 'My Agents' tab
+                  onLike={() => handleLike(agent.AgentID)}
+                  
+                  // Only allow editing/publishing if it's My Agents tab
                   onEdit={activeTab === 'publish' ? () => handlePublish(agent.AgentID, agent._id) : null}
-                  onToggleStatus={activeTab === 'discover' ? () => handleLike(agent.AgentID) : null}
+                  
+                  // Disable the "Active" slider for Discover tab by passing null
+                  onToggleStatus={activeTab === 'publish' ? () => console.log("Toggle status logic here") : null}
                 />
                 
-                {/* Overlay buttons to match your specific requirements */}
-                <div className="absolute top-4 right-4 flex gap-2">
-                  {activeTab === 'discover' ? (
-                    <button 
-                      onClick={() => handleLike(agent.AgentID)}
-                      className={`p-2 rounded-full shadow-lg transition-colors ${agent.Likes?.includes(userId) ? 'bg-red-500 text-white' : 'bg-white text-slate-400'}`}
-                    >
-                      <span className="material-symbols-outlined text-sm">favorite</span>
-                    </button>
-                  ) : (
-                    !agent.isPublished && (
+                {/* Overlay Button: Publish (only if not published yet) */}
+                {activeTab === 'publish' && !agent.isPublished && (
+                   <div className="absolute top-4 right-14"> 
                       <button 
                         onClick={() => handlePublish(agent.AgentID, agent._id)}
-                        className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-lg"
+                        className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-lg hover:bg-blue-700 transition-colors"
                       > Publish </button>
-                    )
-                  )}
-                </div>
-                
-                {activeTab === 'discover' && agent.PublishedDescription && (
-                  <div className="mt-2 px-2 italic text-sm text-slate-500">
-                    "{agent.PublishedDescription}"
-                  </div>
+                   </div>
                 )}
               </div>
             ))}
