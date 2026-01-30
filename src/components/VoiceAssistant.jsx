@@ -64,7 +64,7 @@ const VoiceAssistant = () => {
       fullStop();
       window.removeEventListener('ada:supervisor', handleSupervisorSignal);
     };
-  }, []);
+  }, [navigate, token]);
 
   // --- 2. CONTROLS ---
   const toggleSystem = () => {

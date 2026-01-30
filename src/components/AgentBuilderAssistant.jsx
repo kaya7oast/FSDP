@@ -8,6 +8,129 @@ const AgentBuilderAssistant = ({ onUpdateForm, onComplete }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const scrollRef = useRef(null);
 
+  const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+  const recognitionRef = useRef(null);
+  const synthRef = useRef(window.speechSynthesis);
+  const adaVoiceRef = useRef(null);
+  
+  // Logic Refs
+  const isSystemActive = useRef(false);
+  const modeRef = useRef("offline"); 
+  const heartbeatTimer = useRef(null);
+
+  // --- 1. SETUP ---
+  useEffect(() => {
+    if (!token) {
+      navigate('/login');
+      return () => {};
+    }
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      adaVoiceRef.current = voices.find(v => 
+        v.name.includes("Google US English") || 
+        v.name.includes("Zira") || 
+        v.name.includes("Samantha")
+      ) || voices[0];
+    };
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    heartbeatTimer.current = setInterval(checkPulse, 1000);
+
+    return () => {
+      clearInterval(heartbeatTimer.current);
+      safeStop();
+    };
+  }, [navigate, token]);
+
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  const checkPulse = () => {
+    if (!isSystemActive.current) return;
+    if (modeRef.current === "sentry" && !recognitionRef.current) {
+        startSentryMode();
+    }
+  };
+
+  // --- 2. CORE FUNCTIONS ---
+  const toggleSystem = () => {
+    if (mode === "offline") {
+      isSystemActive.current = true;
+      speak("Online.", () => startSentryMode());
+    } else {
+      isSystemActive.current = false;
+      safeStop();
+    }
+  };
+
+  const safeStop = () => {
+    setMode("offline");
+    setIsMicAlive(false);
+    if (recognitionRef.current) {
+      recognitionRef.current.onend = null;
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+    }
+    synthRef.current.cancel();
+  };
+
+  // --- 3. SPEECH RECOGNITION ---
+  const startSentryMode = () => {
+    if (!isSystemActive.current) return;
+    if (recognitionRef.current) recognitionRef.current.abort();
+
+    setMode("sentry");
+    setTranscript("");
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new Recognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsMicAlive(true);
+    recognition.onend = () => {
+      setIsMicAlive(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.onresult = (event) => {
+      const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
+      if (text.includes("ada") || text.includes("aether")) {
+        recognition.onend = null;
+        recognition.stop();
+        speak("Yes?", () => startCommandMode());
+      }
+    };
+
+    recognitionRef.current = recognition;
+    try { recognition.start(); } catch(e) {}
+  };
+
+  const startCommandMode = () => {
+    if (!isSystemActive.current) return;
+    setMode("listening");
+    setTranscript("");
+
+    if (recognitionRef.current) recognitionRef.current.abort();
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new Recognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsMicAlive(true);
+    recognition.onend = () => {
+      setIsMicAlive(false);
+      recognitionRef.current = null;
+      if (isSystemActive.current && modeRef.current === "listening" && !transcript) {
+         startSentryMode();
+      }
+    };
+  };
+
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
