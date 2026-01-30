@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import AgentCard from "./AgentCard"; // Using your existing card component
+import AgentCard from "./AgentCard"; 
 
 const API_BASE = "/agents";
 
