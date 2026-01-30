@@ -10,7 +10,6 @@ const VoiceAssistant = () => {
   const [isMicAlive, setIsMicAlive] = useState(false); 
 
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
   
   // --- REFS ---
   const recognitionRef = useRef(null);
@@ -23,10 +22,6 @@ const VoiceAssistant = () => {
 
   // --- 1. SETUP & EVENT LISTENER (The Nervous System) ---
   useEffect(() => {
-    if (!token) {
-      navigate('/login');
-      return () => {};
-    }
     // A. Load Voice
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
@@ -260,23 +255,16 @@ const VoiceAssistant = () => {
   };
 
   const performVoiceDelete = async (targetName) => {
-      try {
-        const listRes = await fetch('/agents', {
-         headers: { Authorization: `Bearer ${token}` }
-        });
+     try {
+        const listRes = await fetch('/agents');
         const rawData = await listRes.json();
         const agents = Array.isArray(rawData) ? rawData : (rawData.agents || []);
         
         const match = agents.find(a => (a.AgentName || "").toLowerCase().includes(targetName.toLowerCase()));
 
-
-          if (match) {
-            await fetch(`/agents/${match._id}/delete`, {
-             method: 'POST',
-             headers: { Authorization: `Bearer ${token}` }
-            });
-           speak(`Deleted ${match.AgentName}. Reloading.`, () => {
-
+        if (match) {
+           await fetch(`/agents/${match._id}/delete`, { method: 'POST' });
+           speak(`Deleted ${match.AgentName}.`, () => {
               window.location.reload(); 
            });
         } else {

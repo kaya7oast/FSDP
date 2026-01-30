@@ -26,7 +26,7 @@ app.get("/health", (req, res) => {
 app.post("/guest", guestLogin);
 app.post("/register", registerUser);
 app.post("/login", loginUser);
-app.post("/profile", getUserProfile);
+app.get("/profile", getUserProfile);
 
 // Test route
 app.get("/test", (req, res) => {

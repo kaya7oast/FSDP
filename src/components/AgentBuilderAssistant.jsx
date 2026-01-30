@@ -204,56 +204,6 @@ const AgentBuilderAssistant = ({ onUpdateForm, onComplete }) => {
     }
   };
 
-  // --- 5. HELPER: VOICE DELETE ---
-  const performVoiceDelete = async (targetName, initialReply) => {
-      try {
-        // A. Fetch all agents to find the ID
-        const listRes = await fetch('/agents', {
-         headers: { Authorization: `Bearer ${token}` }
-        }); // Uses Proxy
-        const agents = await listRes.json();
-        
-        // B. Fuzzy Match (Find agent that contains the spoken name)
-        const match = agents.find(a => 
-           a.AgentName?.toLowerCase().includes(targetName.toLowerCase())
-        );
-
-          if (match) {
-            // C. Perform Delete
-            await fetch(`/agents/${match._id}/delete`, {
-             method: 'POST',
-             headers: { Authorization: `Bearer ${token}` }
-            });
-           speak(`Deleted agent ${match.AgentName}.`, () => {
-              window.location.reload(); // Refresh to show changes
-           });
-        } else {
-           speak(`I couldn't find an agent named ${targetName}.`, () => startSentryMode());
-        }
-     } catch(e) {
-        speak("I failed to delete that agent.", () => startSentryMode());
-     }
-  };
-
-  const speak = (text, onComplete) => {
-    setMode("speaking");
-    if (synthRef.current.speaking) synthRef.current.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    if (adaVoiceRef.current) utterance.voice = adaVoiceRef.current;
-    utterance.rate = 1.1;
-    utterance.onend = () => { if (onComplete) onComplete(); };
-    synthRef.current.speak(utterance);
-  };
-
-  // --- RENDER ---
-  if (mode === "offline") {
-    return (
-      <button onClick={toggleSystem} className="fixed bottom-6 right-6 z-50 bg-indigo-600 text-white p-4 rounded-full shadow-xl hover:scale-110 transition-transform">
-        <Mic size={24} />
-      </button>
-    );
-  }
-
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden flex flex-col h-[600px] transition-colors duration-300">
       

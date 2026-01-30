@@ -30,9 +30,9 @@ const userSchema = new mongoose.Schema({
     default: "user"
   },
 
-  privilage: {
+  designation: {
     type: String,
-    default: "standard"
+    default: ""
   },
 
   status: {

@@ -1,5 +1,3 @@
-import jwt from "jsonwebtoken";
-
 export const protect = async (req, res, next) => {
   let token;
 
@@ -15,7 +13,13 @@ export const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { userId, role, username, privilage }
+
+    const user = await User.findOne({ userId: decoded.userId }).select("-password");
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    req.user = user; // { userId, role, username, ... }
     next();
   } catch (err) {
     return res.status(401).json({ message: "Invalid token" });

@@ -7,12 +7,10 @@ const AGENT_SERVICE_URL = process.env.AGENT_SERVICE; // e.g., http://agent-servi
 const RETRIEVAL_SERVICE_URL = process.env.RETRIEVAL_SERVICE_URL; // http://retrieval-service:4005
 
 // Helper: fetch agent details from agent-service
-async function getAgentbyId(agentId, token) {
+async function getAgentbyId(agentId) {
   if (!AGENT_SERVICE_URL) return null;
   try {
-    const resp = await axios.get(`${AGENT_SERVICE_URL}/${agentId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const resp = await axios.get(`${AGENT_SERVICE_URL}/${agentId}`);
     return resp.data.agent; // Expected: { agent: { ... } }
   } catch (err) {
     console.error(`Error fetching agent ${agentId}:`, err.message);
@@ -93,13 +91,9 @@ export const chatWithAgent = async (req, res) => {
   } = req.body;
 
   try {
-    const token = req.headers.authorization?.split(' ')[1] || '';
-    
     const [supervisor, allAgentsResp, retrievedContext] = await Promise.all([
-      getAgentbyId(agentId, token),
-      axios.get(`${AGENT_SERVICE_URL}/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      }).catch(e => ({ data: [] })), 
+      getAgentbyId(agentId),
+      axios.get(`${AGENT_SERVICE_URL}/`).catch(e => ({ data: [] })), 
       docIds.length > 0 
         ? retrieveContext({ userId, docIds, query: message }) 
         : Promise.resolve("")
