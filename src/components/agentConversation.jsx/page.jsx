@@ -128,6 +128,10 @@ export default function AgentConversation() {
 
     const userText = input;
     setInput("");
+  // 3. Send Message (Merged: Your Input Logic + Teammate's Parsing)
+  const handleSendMessage = async (text) => {
+    // 1. Validation (Adapted for ChatInput which passes text directly)
+    if (!text.trim() || !selectedAgent) return;
 
     const userMsg = {
       role: "user",
@@ -137,36 +141,69 @@ export default function AgentConversation() {
     setMessages(prev => [...prev, userMsg]);
     setIsTyping(true);
 
+    console.log("Sending message with docs:", selectedDocIds);
+
     try {
-      const agentId = String(selectedAgent.AgentID || selectedAgent._id);
+      // 2. Get token from localStorage
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
       
+      // 3. Robust ID Handling (From Main)
+      const agentId = String(selectedAgent.AgentID || selectedAgent._id);
+
       const res = await fetch(`/conversations/${agentId}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           userId: USER_ID,
           message: userText,
           conversationId: conversationId,
-          chatname: `Chat with ${selectedAgent.AgentName}`,
-          docIds: selectedDocIds,
+          // Merge: Keep your Docs AND Teammate's Chatname
+          docIds: selectedDocIds, 
+          chatname: `Chat with ${selectedAgent.AgentName}`, 
           provider: "openai"
         })
       });
 
-      if (!res.ok) throw new Error(`Failed to send: ${res.status}`);
+      // 4. Robust Error Handling
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("API Error:", res.status, errorData);
+        throw new Error(`Failed to send message: ${res.status} - ${errorData.error || errorData.message || 'Unknown error'}`);
+      }
+
       const data = await res.json();
-      
-      if (data.conversationId) setConversationId(data.conversationId);
+      console.log("Response from server:", data);
+
+      // 5. Update Conversation ID
+      if (data.conversationId) {
+        setConversationId(data.conversationId);
+      }
+
+      // 6. Handle Reply (Uses parseBotResponse)
       if (data.reply && data.reply.content) {
-        const botMessage = {
-          role: "agent",
-          content: data.reply.content,
+        // Ensure parseBotResponse is defined at the top of your file!
+        const cleanContent = parseBotResponse(data.reply.content);
+
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: cleanContent,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         setMessages(prev => [...prev, botMessage]);
       }
+
     } catch (error) {
       console.error("Chat error:", error);
+      // Optional: Add a visible error message to the chat
+      setMessages(prev => [...prev, {
+        role: "system",
+        content: `⚠️ Error: ${error.message}`,
+        time: new Date().toLocaleTimeString()
+      }]);
     } finally {
       setIsTyping(false);
     }
@@ -302,117 +339,35 @@ export default function AgentConversation() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scroll-smooth">
-           {!selectedAgent && (
-             <div className="h-full flex flex-col items-center justify-center text-center opacity-50 p-10">
-                <div className="w-24 h-24 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
-                   <span className="material-symbols-outlined text-4xl text-slate-400">smart_toy</span>
-                </div>
-                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-300">Select an Agent</h3>
-                <p className="text-slate-500 max-w-sm mt-2">
-                  Choose an AI agent from the sidebar to start a new conversation context.
-                </p>
-             </div>
-           )}
-
-           {messages.map((msg, idx) => {
-             const isUser = msg.role === "user";
-             return (
-               <div key={idx} className={`flex w-full ${isUser ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                  <div className={`flex max-w-[85%] md:max-w-[70%] gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                      {!isUser && (
-                         <div className="flex-shrink-0 mt-1">
-                            <Avatar className="w-8 h-8">
-                                <AvatarFallback className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 text-xs">
-                                   {selectedAgent?.AgentName?.[0]}
-                                </AvatarFallback>
-                            </Avatar>
-                         </div>
-                      )}
-
-                      <div className={`
-                        relative px-5 py-3.5 text-sm leading-relaxed shadow-sm
-                        ${isUser 
-                          ? "bg-violet-600 text-white rounded-2xl rounded-tr-sm" 
-                          : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-2xl rounded-tl-sm"
-                        }
-                      `}>
-                         <div className="whitespace-pre-wrap">
-                            {/* REVERTED TO STANDARD TEXT */}
-                            {/* If you want to use your friend's markdown component, replace this line: */}
-                            {msg.content} 
-                            {/* <MarkdownMessage content={msg.content} /> */}
-                         </div>
-                         <div className={`text-[10px] mt-1.5 opacity-70 ${isUser ? 'text-violet-100' : 'text-slate-400'} text-right`}>
-                            {msg.time}
-                         </div>
-                      </div>
-                  </div>
-               </div>
-             );
-           })}
-
-           {isTyping && (
-             <div className="flex justify-start w-full animate-in fade-in duration-300">
-               <div className="flex gap-3 max-w-[85%]">
-                  <div className="flex-shrink-0 mt-1">
-                     <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse"></div>
-                  </div>
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-3 rounded-2xl rounded-tl-sm flex gap-1.5 items-center shadow-sm h-[46px]">
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                  </div>
-               </div>
-             </div>
-           )}
-           <div ref={messagesEndRef} className="h-4" />
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50 dark:bg-slate-950/50">
+          {messages.map((msg, idx) => (
+            <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`p-4 rounded-2xl max-w-[80%] text-sm ${
+                msg.role === "user" 
+                  ? "bg-blue-600 text-white rounded-tr-none" 
+                  : "bg-white dark:bg-slate-800 border dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-tl-none"
+              }`}>
+                {/* Use MarkdownMessage for agents if possible, otherwise plain text */}
+                {msg.role === "user" ? msg.content : <MarkdownMessage content={msg.content} />}
+              </div>
+            </div>
+          ))}
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="bg-white dark:bg-slate-800 border p-4 rounded-2xl rounded-tl-none flex gap-1 items-center h-12">
+                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></span>
+                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
         </div>
 
-        <div className="p-4 md:p-6 bg-slate-50 dark:bg-slate-950 flex-shrink-0 z-20">
-          <form 
-            onSubmit={handleSendMessage} 
-            className={`
-              max-w-4xl mx-auto flex items-end gap-2 p-2 
-              bg-white dark:bg-slate-900 rounded-2xl 
-              border border-slate-200 dark:border-slate-800 
-              shadow-lg shadow-violet-200/20 dark:shadow-none 
-              transition-all duration-300
-              ${selectedAgent ? 'focus-within:ring-2 focus-within:ring-violet-500/20 focus-within:border-violet-500' : 'opacity-60 cursor-not-allowed'}
-            `}
-          >
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                   e.preventDefault();
-                   handleSendMessage(e);
-                }
-              }}
-              placeholder={selectedAgent ? `Message ${selectedAgent.AgentName}...` : "Select an agent to start..."}
-              className="flex-1 max-h-32 min-h-[44px] py-2.5 px-3 bg-transparent border-none outline-none text-slate-800 dark:text-white text-sm resize-none placeholder:text-slate-400"
-              rows={1}
-              disabled={!selectedAgent}
-            />
-            
-            <button 
-              type="submit"
-              disabled={!input.trim() || !selectedAgent || isTyping}
-              className={`
-                p-2.5 rounded-xl flex items-center justify-center transition-all duration-200
-                ${input.trim() && !isTyping && selectedAgent
-                   ? 'bg-violet-600 text-white hover:bg-violet-700 shadow-md hover:shadow-lg active:scale-95' 
-                   : 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'}
-              `}
-            >
-              <span className="material-symbols-outlined text-[20px]">send</span>
-            </button>
-          </form>
-          <p className="text-center text-[10px] text-slate-400 mt-2">
-            AI can make mistakes. Please verify important information.
-          </p>
-        </div>
+        <ChatInput 
+          onSendMessage={handleSendMessage} 
+          disabled={!selectedAgent || isTyping} 
+        />
       </section>
     </div>
   );

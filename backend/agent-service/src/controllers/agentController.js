@@ -136,3 +136,47 @@ export const deleteAgent = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+// Toggle Like
+export const toggleLike = async (req, res) => {
+  try {
+    const { agentId, userId } = req.body;
+    const agent = await Agent.findOne({ AgentID: agentId });
+    
+    if (agent.Likes.includes(userId)) {
+      agent.Likes = agent.Likes.filter(id => id !== userId);
+    } else {
+      agent.Likes.push(userId);
+    }
+    
+    await agent.save();
+    res.json(agent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Publish Agent
+export const publishAgent = async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const { description } = req.body;
+    const agent = await Agent.findByIdAndUpdate(
+      agentId,
+      { isPublished: true, PublishedDescription: description },
+      { new: true }
+    );
+    res.json(agent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get All Published Agents
+export const getPublishedAgents = async (req, res) => {
+  try {
+    const agents = await Agent.find({ isPublished: true });
+    res.json(agents);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

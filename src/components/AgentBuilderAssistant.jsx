@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const AgentBuilderAssistant = ({ onUpdateForm, onComplete }) => {
   const [messages, setMessages] = useState([
@@ -6,6 +7,9 @@ const AgentBuilderAssistant = ({ onUpdateForm, onComplete }) => {
   ]);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [mode, setMode] = useState("offline");
+  const [isMicAlive, setIsMicAlive] = useState(false);
+  const [transcript, setTranscript] = useState("");
   const scrollRef = useRef(null);
 
   const navigate = useNavigate();
@@ -16,7 +20,6 @@ const AgentBuilderAssistant = ({ onUpdateForm, onComplete }) => {
   
   // Logic Refs
   const isSystemActive = useRef(false);
-  const modeRef = useRef("offline"); 
   const heartbeatTimer = useRef(null);
 
   // --- 1. SETUP ---
@@ -44,16 +47,32 @@ const AgentBuilderAssistant = ({ onUpdateForm, onComplete }) => {
     };
   }, [navigate, token]);
 
-  useEffect(() => { modeRef.current = mode; }, [mode]);
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const checkPulse = () => {
     if (!isSystemActive.current) return;
-    if (modeRef.current === "sentry" && !recognitionRef.current) {
+    if (mode === "sentry" && !recognitionRef.current) {
         startSentryMode();
     }
   };
 
-  // --- 2. CORE FUNCTIONS ---
+  // --- 2. SPEAK FUNCTION ---
+  const speak = (text, onComplete) => {
+    synthRef.current.cancel();
+    setMode("speaking");
+    const utterance = new SpeechSynthesisUtterance(text || "Done.");
+    if (adaVoiceRef.current) utterance.voice = adaVoiceRef.current;
+    utterance.rate = 1.1;
+    
+    utterance.onend = () => {
+      if (onComplete) onComplete();
+    };
+    synthRef.current.speak(utterance);
+  };
+
+  // --- 3. CORE FUNCTIONS ---
   const toggleSystem = () => {
     if (mode === "offline") {
       isSystemActive.current = true;
@@ -125,15 +144,14 @@ const AgentBuilderAssistant = ({ onUpdateForm, onComplete }) => {
     recognition.onend = () => {
       setIsMicAlive(false);
       recognitionRef.current = null;
-      if (isSystemActive.current && modeRef.current === "listening" && !transcript) {
+      if (isSystemActive.current && mode === "listening" && !transcript) {
          startSentryMode();
       }
     };
-  };
 
-  useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    recognitionRef.current = recognition;
+    try { recognition.start(); } catch(e) {}
+  };
 
   const handleSend = async () => {
     if (!input.trim()) return;
