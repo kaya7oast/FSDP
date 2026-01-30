@@ -139,17 +139,21 @@ export const deleteAgent = async (req, res) => {
 // Toggle Like
 export const toggleLike = async (req, res) => {
   try {
-    const { agentId, userId } = req.body;
+    const { agentId } = req.params;
+    const { userId } = req.body; // In a real app, get this from auth middleware
     const agent = await Agent.findOne({ AgentID: agentId });
     
-    if (agent.Likes.includes(userId)) {
-      agent.Likes = agent.Likes.filter(id => id !== userId);
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
+
+    const index = agent.Likes.indexOf(userId);
+    if (index === -1) {
+      agent.Likes.push(userId); // Add like
     } else {
-      agent.Likes.push(userId);
+      agent.Likes.splice(index, 1); // Remove like
     }
-    
+
     await agent.save();
-    res.json(agent);
+    res.json({ likesCount: agent.Likes.length, isLiked: agent.Likes.includes(userId) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -160,8 +164,8 @@ export const publishAgent = async (req, res) => {
   try {
     const { agentId } = req.params;
     const { description } = req.body;
-    const agent = await Agent.findByIdAndUpdate(
-      agentId,
+    const agent = await Agent.findOneAndUpdate(
+      { AgentID: agentId },
       { isPublished: true, PublishedDescription: description },
       { new: true }
     );
@@ -174,7 +178,7 @@ export const publishAgent = async (req, res) => {
 // Get All Published Agents
 export const getPublishedAgents = async (req, res) => {
   try {
-    const agents = await Agent.find({ isPublished: true });
+    const agents = await Agent.find({ isPublished: true, Status: "Active" });
     res.json(agents);
   } catch (err) {
     res.status(500).json({ error: err.message });
