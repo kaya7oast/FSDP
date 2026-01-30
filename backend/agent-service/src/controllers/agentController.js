@@ -195,7 +195,17 @@ export const publishAgent = async (req, res) => {
 // Get All Published Agents
 export const getPublishedAgents = async (req, res) => {
   try {
+    // 1. fetch all published & active agents
     const agents = await Agent.find({ isPublished: true, Status: "Active" });
+
+    // 2. sorting them by Likes count (Descending: Highest to Lowest)
+
+    agents.sort((a, b) => {
+      const likesA = a.Likes?.length || 0;
+      const likesB = b.Likes?.length || 0;
+      return likesB - likesA; 
+    });
+
     res.json(agents);
   } catch (err) {
     res.status(500).json({ error: err.message });
