@@ -37,14 +37,15 @@ const PopularityPage = () => {
   };
 
   const handleLike = async (agentId) => {
-    try {
-      await fetch(`${API_BASE}/toggleLike`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentId, userId })
-      });
-      fetchData(); // Refresh to update like counts
-    } catch (err) { console.error(err); }
+  try {
+    // Change the URL to include the ID as a parameter to match your controller
+    await fetch(`${API_BASE}/toggleLike/${agentId}`, { 
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }) // Pass only userId in the body
+    });
+    fetchData(); 
+  } catch (err) { console.error(err); }
   };
 
   const handlePublish = async (agentId, mongoId) => {
