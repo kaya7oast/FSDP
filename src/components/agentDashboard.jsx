@@ -47,7 +47,7 @@ function AgentDashboard() {
   const fetchAgents = async () => {
     setLoading(true);
     try {
-      const userId = localStorage.getItem('userId');
+      const userId = "U123"; //localStorage.getItem('userId'); 
       console.log(`📡 Requesting agents for User ID: ${userId}`);
       
       const res = await fetch(`${API_BASE}?userId=${userId}`); 

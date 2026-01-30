@@ -47,7 +47,7 @@ export async function generateAIResponse(provider, messageOrMessages) {
       if (!process.env.OPENAI_API_KEY) return "OpenAI API key missing";
       
       const config = {
-        model: "gpt-4o", // Upgraded to valid model
+        model: "gpt-5", // GPT-5 enabled for all clients
         messages: messagesArray,
       };
 
@@ -70,7 +70,7 @@ export async function generateAIResponse(provider, messageOrMessages) {
     try {
       if (!process.env.GEMINI_API_KEY) return "Gemini API key missing";
       
-      const config = { model: "gemini-1.5-flash" };
+      const config = { model: "gemini-3-flash-preview" };
       if (requiresJson) {
         config.generationConfig = { responseMimeType: "application/json" };
       }

@@ -15,15 +15,17 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
-        {/* 1. The Entry Point: first page */}
+        {/* 1. The Entry Point: Now points to the Login Page */}
         <Route path="/" element={<LoginPage />} />
-
+        
+        {/* Added route for Signup */}
         <Route path="/signup" element={<SignupPage />} />
+
         {/* 2. Authenticated Routes: Wrapped in the Layout component */}
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<AgentDashboard />} />
           <Route path="/analytics" element={<AgentAnalytics />} />
-          <Route path="/conversations" element={<AgentConversation />} />
+          <Route path="/chats" element={<AgentConversation />} />
           <Route path="/builder" element={<AgentBuilder />} />
           <Route path="/builder/:agentId" element={<AgentBuilder />} />
         </Route>

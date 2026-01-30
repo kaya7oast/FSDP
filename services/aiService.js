@@ -29,7 +29,7 @@ export const generateAIResponse = async (provider, messages) => {
  */
 const generateWithOpenAI = async (messages) => {
   const completion = await openai.chat.completions.create({
-    model: "gpt-5-nano",
+    model: "gpt-5",
     messages,
   });
   return completion.choices[0].message.content;

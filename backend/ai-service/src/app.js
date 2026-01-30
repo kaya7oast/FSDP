@@ -17,7 +17,13 @@ app.post("/generate", async (req, res) => {
     res.status(500).json({ error: (err && err.message) ? err.message + " from AI Service" : "AI Service error" });
   }
 });
+//test
+app.get("/test", (req, res) => {
+  res.send("AI Service test route is working");
+});
 
-app.listen(process.env.PORT, () =>
-  console.log(`🟩 AI Service running on port ${process.env.PORT}`)
-);
+
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`AI Service running on port ${PORT}`);
+});
