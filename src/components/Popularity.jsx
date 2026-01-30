@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import AgentCard2 from "./AgentCard2"; // <--- IMPORT THE NEW CARD
+import AgentCard from "./AgentCard"; 
+import AgentCard2 from "./AgentCard2";
 
 const API_BASE = "/agents";
 
@@ -10,7 +11,7 @@ const PopularityPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   
-  const userId = localStorage.getItem('userId'); // "U123"; 
+  const userId = localStorage.getItem('userId'); 
 
   useEffect(() => {
     fetchData();
@@ -42,8 +43,44 @@ const PopularityPage = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }) 
       });
-      fetchData(); // Refresh to show new like count
+      fetchData(); 
     } catch (err) { console.error(err); }
+  };
+
+  // --- NEW: Add Agent to My Dashboard ---
+  const handleAddAgent = async (originalAgent) => {
+    if (!confirm(`Add "${originalAgent.AgentName}" to your dashboard?`)) return;
+
+    try {
+      // 1. Prepare the payload (Cloning the agent)
+      const payload = {
+        ...originalAgent,
+        _id: undefined, // Important: Remove original ID so Mongo creates a new one
+        AgentID: undefined, // Remove custom ID
+        AgentName: `${originalAgent.AgentName} (Copy)`,
+        Owner: { UserID: userId, UserName: "Me" }, // Set YOU as the owner
+        isPublished: false, // Reset published status
+        Status: "Active",
+        Likes: [], // Reset likes
+        Views: 0   // Reset views
+      };
+
+      // 2. Send to Backend
+      const res = await fetch(API_BASE, { // POST /agents
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        alert("✅ Agent successfully added to your dashboard!");
+      } else {
+        alert("Failed to add agent.");
+      }
+    } catch (err) {
+      console.error("Add failed:", err);
+      alert("Error adding agent.");
+    }
   };
 
   const handlePublish = async (agentId, mongoId) => {
@@ -60,7 +97,6 @@ const PopularityPage = () => {
     } catch (err) { console.error(err); }
   };
 
-  // Filter items based on search
   const filteredItems = (activeTab === 'discover' ? feed : agents).filter((agent) => {
     if (agent.Status?.toLowerCase() === "deleted") return false;
     const name = (agent.AgentName || "Unnamed").toLowerCase();
@@ -79,7 +115,6 @@ const PopularityPage = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-8 py-8">
-        {/* Search Bar */}
         <div className="mb-8 relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
           <input 
@@ -97,30 +132,35 @@ const PopularityPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredItems.map((agent) => (
               <div key={agent._id} className="relative group">
-                <AgentCard2 
-                  agent={agent} 
-                  
-                  // --- NEW PROPS FOR CARD 2 ---
-                  currentUserId={userId}
-                  isOwner={activeTab === 'publish'} // Only owner in 'My Agents' tab
-                  onLike={() => handleLike(agent.AgentID)}
-                  
-                  // Only allow editing/publishing if it's My Agents tab
-                  onEdit={activeTab === 'publish' ? () => handlePublish(agent.AgentID, agent._id) : null}
-                  
-                  // Disable the "Active" slider for Discover tab by passing null
-                  onToggleStatus={activeTab === 'publish' ? () => console.log("Toggle status logic here") : null}
-                />
                 
-                {/* Overlay Button: Publish (only if not published yet) */}
+                {activeTab === 'discover' ? (
+                  <AgentCard2 
+                    agent={agent} 
+                    currentUserId={userId}
+                    isOwner={false} // You are NOT the owner in discover tab
+                    onLike={() => handleLike(agent.AgentID)}
+                    onAdd={() => handleAddAgent(agent)} // <--- Pass the add function
+                  />
+                ) : (
+                  <AgentCard 
+                    agent={agent}
+                    onEdit={() => handlePublish(agent.AgentID, agent._id)}
+                    onToggleStatus={null} 
+                  />
+                )}
+                
                 {activeTab === 'publish' && !agent.isPublished && (
-                   <div className="absolute top-4 right-14"> 
+                   <div className="absolute bottom-6 left-28 z-20"> 
                       <button 
                         onClick={() => handlePublish(agent.AgentID, agent._id)}
-                        className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-lg hover:bg-blue-700 transition-colors"
-                      > Publish </button>
+                        className="flex items-center gap-1 px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">upload</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Publish</span>
+                      </button>
                    </div>
                 )}
+
               </div>
             ))}
           </div>
