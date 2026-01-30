@@ -90,11 +90,17 @@ export const getAgentbyId = async (req, res) => {
 // --- GET ALL AGENTS ---
 export const getAllAgents = async (req, res) => {
   try {
-    // OLD: const agents = await Agent.find(); 
+    const { userId } = req.query; // 1. Extract userId from query params
     
-    // NEW: Find everything where Status is NOT "deleted"
-    // $ne means "Not Equal"
-    const agents = await Agent.find({ Status: { $ne: "deleted" } });
+    // 2. Base filter: everything not deleted
+    let query = { Status: { $ne: "deleted" } };
+
+    // 3. If userId is present, filter by Owner
+    if (userId) {
+      query["Owner.UserID"] = userId;
+    }
+
+    const agents = await Agent.find(query);
     
     res.json(agents);
   } catch (err) {

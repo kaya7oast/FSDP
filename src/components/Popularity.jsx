@@ -10,7 +10,7 @@ const PopularityPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   
-  const userId = "U123"; // Replace with real auth logic
+  const userId = localStorage.getItem('userId'); // "U123"; 
 
   useEffect(() => {
     fetchData();
