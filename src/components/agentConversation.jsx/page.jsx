@@ -38,6 +38,7 @@ const parseBotResponse = (rawContent) => {
 };
 
 export default function AgentConversation() {
+  const navigate = useNavigate();
   const [agents, setAgents] = useState([]);
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -136,7 +137,16 @@ export default function AgentConversation() {
 
     setIsUploading(true);
     try {
-      const res = await fetch("/ingestion/upload", { method: "POST", body: formData });
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
+      
+      const res = await fetch("/ingestion/upload", { 
+        method: "POST", 
+        body: formData,
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       if (!res.ok) throw new Error("Upload failed");
       const newDoc = await res.json();
       setDocuments(prev => [...prev, { docId: newDoc.docId, docName: newDoc.docName }]);
@@ -163,7 +173,10 @@ export default function AgentConversation() {
     try {
       const res = await fetch(`/conversations/${selectedAgent.AgentID}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${TOKEN}`
+        },
         body: JSON.stringify({
           userId: USER_ID,
           message: text,
@@ -173,7 +186,11 @@ export default function AgentConversation() {
         })
       });
 
-      if (!res.ok) throw new Error("Failed to send message");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("API Error:", res.status, errorData);
+        throw new Error(`Failed to send message: ${res.status} - ${errorData.error || errorData.message || 'Unknown error'}`);
+      }
       
       const data = await res.json();
       
@@ -191,6 +208,11 @@ export default function AgentConversation() {
       }
     } catch (error) {
       console.error("Chat error:", error);
+      setMessages(prev => [...prev, {
+        role: "system",
+        content: `⚠️ Error: ${error.message}`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
     } finally {
       setIsTyping(false);
     }
