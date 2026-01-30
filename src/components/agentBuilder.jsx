@@ -5,10 +5,8 @@ import AgentWorkflowEditor from './AgentWorkflowEditor';
 
 const AgentBuilder = () => {
   const navigate = useNavigate();
-
-  const token = localStorage.getItem('token');
-  const [viewMode, setViewMode] = useState('form'); // 'form' or 'assistant'
-
+  // FIX: Default to 'assistant' so it starts straight away
+  const [viewMode, setViewMode] = useState('assistant'); 
   
   const [workflowData, setWorkflowData] = useState(null);
   const [formData, setFormData] = useState({
@@ -90,18 +88,10 @@ const AgentBuilder = () => {
         WorkflowVisual: workflowData
       };
 
-
-      console.log("🚀 Deploying Agent Payload:", agentData);
-
-      // 7. SEND TO BACKEND
-      const token = localStorage.getItem('token');
-
+      // 4. SEND TO BACKEND
       const response = await fetch('/agents', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(agentData),
       });
 
@@ -120,12 +110,6 @@ const AgentBuilder = () => {
       }));
     }
   };
-
-  useEffect(() => {
-    if (!token) {
-      navigate('/login');
-    }
-  }, [navigate, token]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 pb-20 animate-fade-in">
