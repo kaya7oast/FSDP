@@ -12,6 +12,7 @@ import PopularityPage from './components/Popularity.jsx';
 import LoginPage from './components/login.jsx';
 import SignupPage from './components/signup.jsx';
 
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
