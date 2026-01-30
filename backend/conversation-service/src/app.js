@@ -11,9 +11,7 @@ import {
   getAllConversations,
   deleteConversation,
   summarizeConversation,
-  allConversations,
 } from "./controllers/conversationController.js";
-import { all } from "axios";
 
 
 dotenv.config();
@@ -35,11 +33,10 @@ mongoose.connect(process.env.MONGO_URI, { dbName: "conversationDB" })
 // app.get("/conversations", allConversations);
 
 app.post("/:agentId/chat", chatWithAgent);
-app.get("/:conversationId", getConversation);
-app.get("/user/:userId", getAllConversations);
-app.post("/:conversationId/delete", deleteConversation);
-app.post("/:conversationId/summarize", summarizeConversation);
-app.get("/", allConversations);
+app.get("/user/:userId", protect, getAllConversations);
+app.get("/:conversationId", protect, getConversation);
+app.post("/:conversationId/delete", protect, deleteConversation);
+app.post("/:conversationId/summarize", protect, summarizeConversation);
 //test
 app.get("/test", (req, res) => {
   res.send("Test route is working");
