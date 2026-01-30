@@ -13,10 +13,13 @@ const AgentCard2 = ({
     ? new Date(agent.UpdatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) 
     : 'New';
 
-  // --- LIKE LOGIC ---
+  // --- LOGIC UPDATES ---
   const isLiked = agent.Likes?.includes(currentUserId);
   const likeCount = agent.Likes?.length || 0;
-  // ------------------
+  
+  // Check if the current user is the owner of this agent
+  const isOwnAgent = agent.Owner?.UserID === currentUserId;
+  // ---------------------
 
   const getBadgeStyle = (index) => {
     const styles = [
@@ -82,12 +85,20 @@ const AgentCard2 = ({
       {/* --- STATS ROW (LIKES & VIEWS) --- */}
       <div className="flex items-center gap-4 mb-4 px-1 border-t border-slate-100 dark:border-slate-700/50 pt-4">
         
-        {/* Like Button */}
+        {/* Like Button: DISABLED if isOwnAgent is true */}
         <button 
-          onClick={(e) => { e.stopPropagation(); if (onLike) onLike(); }}
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            // Only allow like if NOT owner
+            if (!isOwnAgent && onLike) onLike(); 
+          }}
+          disabled={isOwnAgent} // HTML disabled attribute
           className={`flex items-center gap-1.5 text-xs font-bold transition-all active:scale-95 
-            ${isLiked ? 'text-red-500 scale-105' : 'text-slate-400 hover:text-red-500'}`}
-          title={isLiked ? "Unlike" : "Like"}
+            ${isOwnAgent 
+              ? 'opacity-50 cursor-not-allowed text-slate-300' // Dimmed style for owner
+              : (isLiked ? 'text-red-500 scale-105' : 'text-slate-400 hover:text-red-500') // Normal interactive style
+            }`}
+          title={isOwnAgent ? "You cannot like your own agent" : (isLiked ? "Unlike" : "Like")}
         >
           <span className={`material-symbols-outlined text-[18px] ${isLiked ? 'fill-current' : ''}`}>
             {isLiked ? 'favorite' : 'favorite_border'}
@@ -95,19 +106,17 @@ const AgentCard2 = ({
           <span>{likeCount}</span>
         </button>
 
-        {/* View Count */}
         <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
           <span className="material-symbols-outlined text-[18px]">visibility</span>
           {agent.Views || 0}
         </div>
       </div>
 
-      {/* Footer */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           
-          {/* Add Button (For non-owners) */}
-          {!isOwner && onAdd && (
+          {/* Add Button: Also hide/disable if it's your own agent, since you already have it */}
+          {!isOwner && !isOwnAgent && onAdd && (
             <button 
               onClick={(e) => { e.stopPropagation(); onAdd(); }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg shadow-sm hover:shadow-md hover:scale-105 transition-all active:scale-95"
@@ -117,7 +126,6 @@ const AgentCard2 = ({
             </button>
           )}
 
-          {/* Published Badge */}
           {agent.isPublished && (
             <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-md">
               <span className="material-symbols-outlined text-[14px]">public</span>
