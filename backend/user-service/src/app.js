@@ -8,6 +8,7 @@ import {
   guestLogin,
   getUserProfile,
   addCustomNode
+  authMe,
 } from "./controllers/userController.js";
 
 dotenv.config();
@@ -29,6 +30,7 @@ app.post("/register", registerUser);
 app.post("/login", loginUser);
 app.get("/profile", getUserProfile);
 app.post("/nodes", addCustomNode);
+app.get("/auth/me", authMe);
 
 // Test route
 app.get("/test", (req, res) => {

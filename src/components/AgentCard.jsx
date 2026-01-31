@@ -20,6 +20,7 @@ const AgentCard = ({ agent, onEdit, onDuplicate, onDelete, onToggleStatus }) => 
   return (
     <div className="group relative flex flex-col justify-between p-6 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
       
+      {/* Header Section */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-4">
           <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-inner
@@ -42,6 +43,7 @@ const AgentCard = ({ agent, onEdit, onDuplicate, onDelete, onToggleStatus }) => 
           </div>
         </div>
 
+        {/* Action Buttons */}
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 translate-x-2 group-hover:translate-x-0">
           <button onClick={onEdit} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-blue-500 transition-colors" title="Edit">
             <span className="material-symbols-outlined text-[20px]">edit</span>
@@ -55,10 +57,14 @@ const AgentCard = ({ agent, onEdit, onDuplicate, onDelete, onToggleStatus }) => 
         </div>
       </div>
 
+      {/* Description */}
       <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-2 mb-4 h-10">
-        {agent.Description || "No description provided."}
+        {(agent.isPublished && agent.PublishedDescription) 
+          ? agent.PublishedDescription 
+          : (agent.Description || "No description provided.")}
       </p>
 
+      {/* Capabilities */}
       <div className="flex flex-wrap gap-2 mb-6">
         {caps.length > 0 ? (
           caps.slice(0, 3).map((cap, idx) => (
@@ -74,20 +80,33 @@ const AgentCard = ({ agent, onEdit, onDuplicate, onDelete, onToggleStatus }) => 
         )}
       </div>
 
+      {/* Footer: Slider & Published Status */}
       <div className="pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3"> {/* Increased gap for spacing */}
+          
+          {/* Active Slider */}
           <label className="relative inline-flex items-center cursor-pointer">
             <input 
               type="checkbox" 
               className="sr-only peer"
               checked={isActive}
-              onChange={onToggleStatus}
+              onChange={onToggleStatus || (() => {})}
             />
             <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-500"></div>
             <span className="ml-2 text-xs font-medium text-slate-600 dark:text-slate-400">{isActive ? 'Active' : 'Inactive'}</span>
           </label>
+
+          {/* --- NEW LOCATION: Published Badge --- */}
+          {agent.isPublished && (
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-md">
+              <span className="material-symbols-outlined text-[14px]">public</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">Published</span>
+            </div>
+          )}
+          {/* ----------------------------------- */}
+
         </div>
-        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Updated {lastUpdated}</span>
+        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{lastUpdated}</span>
       </div>
     </div>
   );

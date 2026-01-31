@@ -8,9 +8,12 @@ import { uploadAndConvertToWord } from "../src/controllers/fileController.js";
 import { 
   getAllAgents,
   getActiveAgents,
-  addAgent,
-  deleteAgent,
+  getPublishedAgents, // Make sure this is imported
+  publishAgent,       // Make sure this is imported
+  toggleLike,         // Make sure this is imported
+  addAgent, 
   updateAgent,
+  deleteAgent,
   getAgentbyId,
 } from "./controllers/agentController.js";
 
@@ -23,19 +26,23 @@ app.use(express.json());
 
 connectDB();
 
-// Agent routes
-// app.get("/agents", getAllAgents);
-// app.get("/agents/active", getActiveAgents);
-// app.post("/agents", addAgent);
-// app.put("/agents/:agentId", updateAgent);
-// app.post("/agents/:agentId/delete", deleteAgent);
-// app.get("/agents/:agentId", getAgentbyId);
+// --- ADD THESE ROUTES BEFORE THE GENERIC /:agentId ROUTES ---
+// (Order matters! /published must come before /:agentId)
 
-app.get("/", getAllAgents);
+// 1. Fetch published agents (Fixes 404 on /agents/published)
+app.get("/published", getPublishedAgents);
 app.get("/active", getActiveAgents);
+
+
+app.put("/publish/:agentId", publishAgent);
+app.post("/toggleLike/:agentId", toggleLike); 
+
+// --- EXISTING ROUTES ---
+app.get("/", getAllAgents);
 app.post("/", addAgent);
 app.put("/:agentId", updateAgent);
 app.post("/:agentId/delete", deleteAgent);
+
 app.get("/:agentId", getAgentbyId);
 
 //test
@@ -51,4 +58,3 @@ const PORT = process.env.PORT || 4001;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Agent Service running on port ${PORT}`);
 });
-

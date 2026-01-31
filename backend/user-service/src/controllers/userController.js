@@ -3,6 +3,28 @@ import User from "../models/userModel.js";
 import Counter from "../models/counterModel.js";
 import jwt from "jsonwebtoken";
 
+// AUTH ME: verify token and return minimal user info
+export const authMe = async (req, res) => {
+  try {
+    let token;
+    if (req.headers.authorization?.startsWith("Bearer ")) {
+      token = req.headers.authorization.split(" ")[1];
+    } else if (req.cookies?.token) {
+      token = req.cookies.token;
+    }
+
+    if (!token) return res.status(401).json({ message: "Not authenticated" });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findOne({ userId: decoded.userId }).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    return res.json({ userId: user.userId, username: user.username, email: user.email });
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid token" });
+  }
+};
+
 // REGISTER: Requires Username, Email, and Password
 export const registerUser = async (req, res) => {
   try {
