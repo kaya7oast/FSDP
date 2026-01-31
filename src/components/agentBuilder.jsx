@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState , useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AgentBuilderAssistant from './AgentBuilderAssistant';
 import AgentWorkflowEditor from './AgentWorkflowEditor';
@@ -33,6 +33,10 @@ const AgentBuilder = () => {
       };
     });
   };
+
+    const handleWorkflowSave = useCallback((data) => {
+        setWorkflowData(data);
+    }, []);
 
   const handleSave = async () => {
     try {
@@ -198,7 +202,7 @@ const AgentBuilder = () => {
                onClick={() => setViewMode('assistant')}
                className={`px-5 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
                    viewMode === 'assistant' 
-                   ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md' 
+                   ? 'bg-linear-to-r from-violet-600 to-fuchsia-600 text-white shadow-md' 
                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                }`}
              >
@@ -230,7 +234,7 @@ const AgentBuilder = () => {
         
         {viewMode === 'assistant' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-3xl p-8 mb-8 text-white shadow-2xl shadow-violet-500/30 relative overflow-hidden">
+                <div className="bg-linear-to-r from-violet-600 to-fuchsia-600 rounded-3xl p-8 mb-8 text-white shadow-2xl shadow-violet-500/30 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                     <div className="relative z-10 flex items-center gap-6">
                         <div className="p-4 bg-white/20 backdrop-blur-md rounded-2xl border border-white/30 shadow-inner">
@@ -261,7 +265,7 @@ const AgentBuilder = () => {
                         Visual Canvas
                      </h2>
                   </div>
-                  <AgentWorkflowEditor onSave={(data) => setWorkflowData(data)} />
+                  <AgentWorkflowEditor onSave={handleWorkflowSave} />
               </div>
             </div>
         ) : (

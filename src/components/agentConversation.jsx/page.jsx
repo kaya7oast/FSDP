@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Avatar, AvatarFallback } from "./avatar";
-// import { MarkdownMessage } from "./MarkdownMessage"; // UNCOMMENT THIS if using your friend's component
+import { MarkdownMessage } from "./MarkdownMessage";
 
 // Hardcoded user ID to match ingestion and conversation service defaults
 const USER_ID = "U002"; 
@@ -122,20 +122,19 @@ export default function AgentConversation() {
     }
   };
 
-  const handleSendMessage = async (e) => {
-    e?.preventDefault();
-    if (!input.trim() || !selectedAgent) return;
+  // Helper function to clean bot response
+  const parseBotResponse = (content) => {
+    // Remove markdown code blocks if present
+    return content.replace(/```[\s\S]*?```/g, '').trim();
+  };
 
-    const userText = input;
-    setInput("");
-  // 3. Send Message (Merged: Your Input Logic + Teammate's Parsing)
   const handleSendMessage = async (text) => {
-    // 1. Validation (Adapted for ChatInput which passes text directly)
+    // Validation
     if (!text.trim() || !selectedAgent) return;
 
     const userMsg = {
       role: "user",
-      content: userText,
+      content: text,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     setMessages(prev => [...prev, userMsg]);
@@ -159,7 +158,7 @@ export default function AgentConversation() {
         },
         body: JSON.stringify({
           userId: USER_ID,
-          message: userText,
+          message: text,
           conversationId: conversationId,
           // Merge: Keep your Docs AND Teammate's Chatname
           docIds: selectedDocIds, 
@@ -185,15 +184,13 @@ export default function AgentConversation() {
 
       // 6. Handle Reply (Uses parseBotResponse)
       if (data.reply && data.reply.content) {
-        // Ensure parseBotResponse is defined at the top of your file!
         const cleanContent = parseBotResponse(data.reply.content);
 
         setMessages(prev => [...prev, {
           role: "assistant",
           content: cleanContent,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setMessages(prev => [...prev, botMessage]);
+        }]);
       }
 
     } catch (error) {
@@ -370,5 +367,41 @@ export default function AgentConversation() {
         />
       </section>
     </div>
+  );
+}
+
+// ChatInput Component
+function ChatInput({ onSendMessage, disabled }) {
+  const [input, setInput] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (input.trim() && !disabled) {
+      onSendMessage(input);
+      setInput("");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex-shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+      <div className="flex gap-3 items-center">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={disabled ? "Select an agent to start chatting..." : "Type your message..."}
+          disabled={disabled}
+          className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        />
+        <button
+          type="submit"
+          disabled={disabled || !input.trim()}
+          className="px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <span>Send</span>
+          <span className="material-symbols-outlined text-[20px]">send</span>
+        </button>
+      </div>
+    </form>
   );
 }
