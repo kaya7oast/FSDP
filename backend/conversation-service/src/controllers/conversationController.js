@@ -299,6 +299,12 @@ q
     const supervisorMessages = [
       { role: "system", content: supervisorPrompt },
       ...contextMessages,
+      ...(retrievedContext
+        ? [{
+            role: "system",
+            content: `📚 KNOWLEDGE BASE CONTEXT:\n\n${retrievedContext}\n\nUse this context to answer accurately. If relevant information is found, cite it.`
+          }]
+        : []),
       {
         role: "system",
         content: `INTERNAL ANALYSES (do not expose):\n\n${internalResults
@@ -482,7 +488,7 @@ async function retrieveContext({ userId, docIds, query }) {
   console.log("retrieveContext called with:", { userId, docIds, query });
   try {
     const resp = await axios.post(
-      `${process.env.RETRIEVAL_SERVICE_URL}/retrieve`,
+      `${process.env.RETRIEVAL_SERVICE_URL}/`,
       {
         userId,
         docIds,
