@@ -7,6 +7,7 @@ import {
   loginUser,
   guestLogin,
   getUserProfile,
+  addCustomNode
   authMe,
 } from "./controllers/userController.js";
 
@@ -28,6 +29,7 @@ app.post("/guest", guestLogin);
 app.post("/register", registerUser);
 app.post("/login", loginUser);
 app.get("/profile", getUserProfile);
+app.post("/nodes", addCustomNode);
 app.get("/auth/me", authMe);
 
 // Test route

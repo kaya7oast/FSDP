@@ -1,194 +1,199 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// --- DATA: The 50+ Options ---
-const TRAIT_CATEGORIES = {
-  "Identity (Who)": [
-    { label: "Expert Role", desc: "Highly knowledgeable authority." },
-    { label: "Novice Role", desc: "Learning, asks questions." },
-    { label: "Critic", desc: "Critical, finds flaws." },
-    { label: "Coach", desc: "Encouraging, guides user." },
-    { label: "Formal Tone", desc: "Professional, no slang." },
-    { label: "Casual Tone", desc: "Relaxed, friendly." },
-    { label: "Sarcastic", desc: "Witty, dry humor." },
-    { label: "Empathetic", desc: "Careful, emotional intelligence." }
-  ],
-  "Knowledge (What)": [
-    { label: "Python Expert", desc: "Coding & debugging." },
-    { label: "Web Dev", desc: "HTML/CSS/React." },
-    { label: "Legal Knowledge", desc: "Contracts & compliance." },
-    { label: "Medical Info", desc: "Anatomy & health basics." },
-    { label: "History Buff", desc: "Dates & world events." },
-    { label: "Math Logic", desc: "Step-by-step reasoning." },
-    { label: "Creative Writing", desc: "Storytelling & prose." },
-    { label: "Marketing", desc: "Copywriting & sales." }
-  ],
-  "Controls (Safety)": [
-    { label: "No Swearing", desc: "Strict profanity filter." },
-    { label: "Strict Facts", desc: "No hallucinations." },
-    { label: "Short Answers", desc: "Under 50 words." },
-    { label: "Long Answers", desc: "Detailed explanations." },
-    { label: "No Bias", desc: "Neutral point of view." },
-    { label: "Markdown Only", desc: "Formatted output." }
-  ],
-  "Outputs (Format)": [
-    { label: "Plain Text", desc: "Standard chat bubble." },
-    { label: "JSON Object", desc: "Structured data." },
-    { label: "Code Block", desc: "Syntax highlighted." },
-    { label: "Email Draft", desc: "Subject + Body format." },
-    { label: "Table", desc: "Row/Column data." },
-    { label: "Audio/Voice", desc: "TTS enabled." },
-    { label: "Image Gen", desc: "Visual output." }
-  ]
+const onDragStart = (event, nodeData) => {
+  event.dataTransfer.setData('application/reactflow', 'custom');
+  event.dataTransfer.setData('application/data', JSON.stringify(nodeData));
+  event.dataTransfer.effectAllowed = 'move';
 };
 
-// --- COMPONENTS ---
-
-const DraggableTrait = ({ label, desc, category }) => {
-  const onDragStart = (event) => {
-    event.dataTransfer.setData('application/reactflow', 'trait');
-    event.dataTransfer.setData('application/label', label);
-    event.dataTransfer.setData('application/desc', desc);
-    event.dataTransfer.setData('application/category', category);
-    event.dataTransfer.effectAllowed = 'move';
-  };
-
-  return (
-    <div 
-      className="p-3 bg-white border border-[#E0D8C3] rounded-xl cursor-grab hover:border-orange-400 hover:shadow-md transition-all active:scale-95 group"
-      onDragStart={onDragStart} 
-      draggable
-    >
-      <div className="flex items-center justify-between mb-1">
-        <span className="font-bold text-sm text-[#4E342E]">{label}</span>
-        <span className="material-symbols-outlined text-[16px] text-orange-300 opacity-0 group-hover:opacity-100 transition-opacity">drag_indicator</span>
-      </div>
-      <p className="text-[10px] text-[#8D7F71] leading-tight">{desc}</p>
+const SidebarItem = ({ label, desc, icon, bg, category, data, isPopular, onContextMenu }) => (
+  <div
+    className={`
+      group relative flex items-center gap-3 p-3 rounded-xl cursor-grab active:cursor-grabbing
+      bg-white border shadow-sm transition-all duration-200 select-none
+      ${isPopular ? 'border-orange-200 hover:border-orange-400 shadow-orange-100' : 'border-slate-100 hover:border-violet-200 hover:shadow-md'}
+      hover:-translate-y-0.5
+    `}
+    onDragStart={(event) => onDragStart(event, data)}
+    onContextMenu={onContextMenu} // ✅ Attach Right Click
+    draggable
+  >
+    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg ${bg} ${isPopular ? 'ring-2 ring-orange-100' : ''}`}>
+      <span className="material-symbols-outlined text-[18px]">{icon}</span>
     </div>
-  );
-};
-
-const TemplateCard = ({ title, tags, onClick }) => (
-  <div onClick={onClick} className="p-4 bg-white border-l-4 border-l-orange-400 border border-[#E0D8C3] rounded-xl cursor-pointer hover:shadow-md transition-all mb-3">
-    <h4 className="font-bold text-[#4E342E] text-sm mb-1">{title}</h4>
-    <div className="flex gap-1 flex-wrap">
-      {tags.map((t, i) => (
-        <span key={i} className="px-1.5 py-0.5 bg-orange-50 text-orange-600 text-[10px] font-bold rounded">{t}</span>
-      ))}
+    <div className="flex-1 min-w-0">
+      <div className="text-xs font-bold text-slate-700 group-hover:text-violet-700 transition-colors truncate flex items-center gap-2">
+        {label}
+        {isPopular && <span className="material-symbols-outlined text-[12px] text-orange-500">local_fire_department</span>}
+      </div>
+      <div className="text-[9px] text-slate-400 font-medium truncate">{desc}</div>
     </div>
   </div>
 );
 
-const WorkflowSidebar = ({ isOpen, onClose, onLoadTemplate }) => {
-  const [activeTab, setActiveTab] = useState('build'); // 'build' or 'templates'
-  const [openCategories, setOpenCategories] = useState(Object.keys(TRAIT_CATEGORIES));
+const SidebarCategory = ({ title, color, children }) => (
+  <div className="mb-6">
+    <h3 className={`text-[10px] font-black uppercase tracking-widest mb-3 ${color} pl-1 flex items-center gap-1`}>
+      {title}
+    </h3>
+    <div className="grid grid-cols-1 gap-2">
+      {children}
+    </div>
+  </div>
+);
 
-  const toggleCategory = (cat) => {
-    setOpenCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
+const WorkflowSidebar = ({ availableNodes = [], onCreateNode, onEditNode, onDeleteNode }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, node }
+
+  // Close menu on click anywhere else
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
+  const handleContextMenu = (e, node) => {
+    e.preventDefault();
+    // Only allow context menu for User Nodes
+    if (node.data.isUserNode) {
+        setContextMenu({ x: e.clientX, y: e.clientY, node });
+    }
   };
 
+  const filteredNodes = useMemo(() => {
+    if (!searchTerm) return availableNodes;
+    const lowerTerm = searchTerm.toLowerCase();
+    return availableNodes.filter(n => 
+      (n.data?.label || '').toLowerCase().includes(lowerTerm) || 
+      (n.data?.content || '').toLowerCase().includes(lowerTerm)
+    );
+  }, [availableNodes, searchTerm]);
+
+  // ✅ FIX: "My Custom Nodes" now looks for isUserNode flag
+  const userNodes = useMemo(() => filteredNodes.filter(n => n.data?.isUserNode), [filteredNodes]);
+  
+  // Base nodes exclude user nodes to avoid duplicates
+  const baseNodes = useMemo(() => filteredNodes.filter(n => !n.data?.isUserNode), [filteredNodes]);
+
+  const popularNodes = useMemo(() => {
+    if (searchTerm) return []; 
+    return [...baseNodes]
+      .filter(n => n.data?.usageCount > 0)
+      .sort((a, b) => (b.data?.usageCount || 0) - (a.data?.usageCount || 0))
+      .slice(0, 3);
+  }, [baseNodes, searchTerm]);
+
+  const getBaseNodesByCategory = (cat) => baseNodes.filter(n => n.data?.category === cat);
+
   return (
-    <aside className={`
-      fixed inset-x-0 bottom-0 z-50 md:z-0 h-[60vh] transform transition-transform duration-300 ease-in-out bg-[#F5F0E6] border-t-2 border-orange-400 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]
-      md:relative md:inset-auto md:h-full md:w-80 md:transform-none md:border-t-0 md:border-r md:border-[#E0D8C3] md:shadow-none
-      ${isOpen ? 'translate-y-0' : 'translate-y-full md:translate-y-0'}
-    `}>
-      
-      {/* Mobile Handle / Close Button */}
-      <div className="md:hidden flex justify-center pt-2 pb-1" onClick={onClose}>
-        <div className="w-12 h-1.5 bg-orange-200 rounded-full"></div>
-      </div>
-
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-[#E0D8C3] flex items-center gap-3">
-        <div className="w-6 h-6 bg-orange-400 rounded-full flex items-center justify-center text-white text-xs font-bold">N</div>
-        <h3 className="font-extrabold text-[#4E342E] text-lg tracking-tight">Personality Builder</h3>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex p-3 gap-2">
-        <button 
-          onClick={() => setActiveTab('build')}
-          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'build' ? 'bg-white text-orange-500 shadow-sm' : 'text-[#8D7F71] hover:bg-white/50'}`}
-        >
-          Build
-        </button>
-        <button 
-          onClick={() => setActiveTab('templates')}
-          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'templates' ? 'bg-white text-orange-500 shadow-sm' : 'text-[#8D7F71] hover:bg-white/50'}`}
-        >
-          Templates
+    <>
+    <aside className="w-72 bg-slate-50 border-r border-slate-200 flex-col h-full hidden md:flex shrink-0">
+      {/* HEADER */}
+      <div className="p-4 border-b border-slate-200 bg-white shadow-sm z-10 space-y-3">
+        <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <span className="material-symbols-outlined text-violet-600">build_circle</span>
+            Toolbox
+            </h2>
+            <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                {filteredNodes.length}
+            </span>
+        </div>
+        <div className="relative group">
+            <span className="material-symbols-outlined absolute left-2.5 top-2.5 text-slate-400 text-lg group-focus-within:text-violet-500 transition-colors">search</span>
+            <input 
+                type="text" 
+                placeholder="Search nodes..." 
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 transition-all"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+        </div>
+        <button onClick={onCreateNode} id="tour-create-btn" className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-slate-200 transition-all active:scale-95">
+            <span className="material-symbols-outlined text-sm">add_circle</span>
+            Create Custom Node
         </button>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-4 h-[calc(100%-140px)] scrollbar-thin scrollbar-thumb-orange-200">
+      {/* LIST */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
         
-        {activeTab === 'build' ? (
-          <>
-            {/* EXISTING CATEGORIES LOOP */}
-            {Object.entries(TRAIT_CATEGORIES).map(([category, items]) => (
-              <div key={category} className="mb-4">
-                <button 
-                  onClick={() => toggleCategory(category)}
-                  className="w-full flex items-center justify-between text-xs font-bold text-[#8D7F71] uppercase tracking-widest mb-2 px-1 hover:text-orange-500"
-                >
-                  {category}
-                  <span className={`material-symbols-outlined text-sm transition-transform ${openCategories.includes(category) ? 'rotate-180' : ''}`}>expand_more</span>
-                </button>
-                
-                {openCategories.includes(category) && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {items.map((item) => (
-                      <DraggableTrait 
-                        key={item.label} 
-                        label={item.label} 
-                        desc={item.desc} 
-                        category={category.split(' ')[0]} 
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+        {/* 🔥 POPULAR */}
+        {popularNodes.length > 0 && (
+            <SidebarCategory title="Most Used" color="text-orange-500">
+            {popularNodes.map((node) => (
+                <SidebarItem key={`pop-${node.id}`} {...node.data} isPopular={true} bg="bg-orange-50 text-orange-600" />
             ))}
-
-            {/* --- NEW: CUSTOM CONTEXT NODE --- */}
-            <div className="mt-6 pt-6 border-t border-[#E0D8C3]">
-              <div className="text-xs font-bold text-[#8D7F71] uppercase tracking-widest mb-2 px-1">
-                Advanced
-              </div>
-              <div 
-                className="p-3 bg-white border border-indigo-200 rounded-xl cursor-grab hover:border-indigo-400 hover:shadow-md transition-all active:scale-95 group"
-                draggable
-                onDragStart={(event) => {
-                  // This manually sets the data, categorizing it as 'Custom'
-                  event.dataTransfer.setData('application/reactflow', 'default'); // Use default shape
-                  event.dataTransfer.setData('application/label', 'Custom Context');
-                  event.dataTransfer.setData('application/desc', 'Add specific rules or backstory.');
-                  event.dataTransfer.setData('application/category', 'Custom'); 
-                  event.dataTransfer.effectAllowed = 'move';
-                }} 
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="material-symbols-outlined text-indigo-500">extension</span>
-                  <span className="font-bold text-sm text-[#4E342E]">Custom / Other</span>
-                </div>
-                <p className="text-[10px] text-[#8D7F71] leading-tight">
-                  Drag in to add unique rules, constraints, or hidden context.
-                </p>
-              </div>
-            </div>
-            {/* -------------------------------- */}
-          </>
-        ) : (
-          // TEMPLATES TAB (Keep as is)
-          <div className="space-y-2">
-             <TemplateCard title="🐱 The Coding Buddy" tags={["Python", "Web Dev", "Code Block"]} onClick={() => onLoadTemplate('coding')} />
-             <TemplateCard title="🧶 The Listener" tags={["Empathetic", "Soft Tone", "Plain Text"]} onClick={() => onLoadTemplate('therapy')} />
-             <TemplateCard title="👔 The Professional" tags={["Formal", "Email Draft", "No Swearing"]} onClick={() => onLoadTemplate('business')} />
-          </div>
+            </SidebarCategory>
         )}
+
+        {/* 👤 CUSTOM NODES (FIXED: Now uses userNodes list) */}
+        <SidebarCategory title="My Custom Nodes" color="text-violet-600">
+            {userNodes.map((node) => (
+            <SidebarItem 
+                key={node.id} 
+                {...node.data} 
+                data={node.data}
+                bg="bg-white border-2 border-violet-100 text-violet-600" 
+                onContextMenu={(e) => handleContextMenu(e, node)} // Attach context menu
+            />
+            ))}
+            {userNodes.length === 0 && !searchTerm && (
+                <div className="text-[10px] text-slate-400 italic px-1 mb-4 border border-dashed border-slate-300 rounded-lg p-3 text-center bg-slate-50">
+                    No custom nodes yet.<br/>Click "Create" above!
+                </div>
+            )}
+        </SidebarCategory>
+
+        {/* STANDARD CATEGORIES */}
+        {['IDENTITY', 'CAPABILITY', 'KNOWLEDGE', 'LOGIC'].map(cat => {
+            const nodes = getBaseNodesByCategory(cat);
+            if (nodes.length === 0) return null;
+            const colorClass = cat === 'IDENTITY' ? 'text-fuchsia-500' : cat === 'CAPABILITY' ? 'text-emerald-500' : cat === 'KNOWLEDGE' ? 'text-blue-500' : 'text-amber-500';
+            const bgClass = cat === 'IDENTITY' ? 'bg-fuchsia-100 text-fuchsia-600' : cat === 'CAPABILITY' ? 'bg-emerald-100 text-emerald-600' : cat === 'KNOWLEDGE' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600';
+
+            return (
+                <SidebarCategory key={cat} title={cat} color={colorClass}>
+                    {nodes.map((node) => (
+                        <SidebarItem key={node.id} {...node.data} data={node.data} bg={bgClass} />
+                    ))}
+                </SidebarCategory>
+            );
+        })}
       </div>
     </aside>
+
+    {/* 🖱️ RIGHT CLICK MENU (FIXED POSITION) */}
+    <AnimatePresence>
+    {contextMenu && (
+        <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 9999 }}
+            className="bg-slate-800 text-white rounded-xl shadow-2xl p-1.5 min-w-35 border border-slate-700 overflow-hidden"
+        >
+            <div className="px-2 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700 mb-1">
+                {contextMenu.node.data.label}
+            </div>
+            <button 
+                onClick={() => { onEditNode(contextMenu.node); setContextMenu(null); }}
+                className="w-full text-left px-2 py-2 text-xs font-bold hover:bg-slate-700 rounded-lg flex items-center gap-2 transition-colors"
+            >
+                <span className="material-symbols-outlined text-sm text-blue-400">edit</span> Edit Node
+            </button>
+            <button 
+                onClick={() => { onDeleteNode(contextMenu.node); setContextMenu(null); }}
+                className="w-full text-left px-2 py-2 text-xs font-bold hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg flex items-center gap-2 transition-colors"
+            >
+                <span className="material-symbols-outlined text-sm">delete</span> Delete
+            </button>
+        </motion.div>
+    )}
+    </AnimatePresence>
+    </>
   );
 };
 

@@ -45,7 +45,15 @@ const userSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
-  }
+  },
+
+  customNodes: [{
+    label: String,
+    category: String,
+    icon: String,
+    content: String,
+    usageCount: { type: Number, default: 0 }
+  }]
 });
 
 export default mongoose.model("User", userSchema);

@@ -297,6 +297,7 @@ export default function AgentConversation() {
           content: cleanContent,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
+        
         setMessages(prev => [...prev, botMessage]);
       }
 
