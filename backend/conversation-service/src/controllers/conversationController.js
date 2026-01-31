@@ -192,7 +192,7 @@ export const chatWithAgent = async (req, res) => {
       - Tone: ${tone}
       - Style: ${style}
       - Attitude: ${emotion}
-s
+q
       INSTRUCTIONS:
       Stay in character. Use your specific capabilities to help the user. 
       If asked what you can do, list your specific capabilities.
@@ -299,6 +299,12 @@ s
     const supervisorMessages = [
       { role: "system", content: supervisorPrompt },
       ...contextMessages,
+      ...(retrievedContext
+        ? [{
+            role: "system",
+            content: `📚 KNOWLEDGE BASE CONTEXT:\n\n${retrievedContext}\n\nUse this context to answer accurately. If relevant information is found, cite it.`
+          }]
+        : []),
       {
         role: "system",
         content: `INTERNAL ANALYSES (do not expose):\n\n${internalResults
@@ -358,6 +364,12 @@ export const getConversation = async (req, res) => {
   try {
     const conversation = await Conversation.findOne({ conversationId });
     if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+    
+    // Ensure authenticated user can only access their own conversation
+    if (conversation.userId !== req.user.userId) {
+      return res.status(403).json({ error: "Unauthorized: Cannot access other users' conversations" });
+    }
+    
     if (conversation.status === "deleted") return res.status(410).json({ error: "Conversation deleted" });
     
     // Filter out system prompts and internal messages before sending to client
@@ -377,8 +389,25 @@ export const getConversation = async (req, res) => {
 // Get all conversations for a user
 export const getAllConversations = async (req, res) => {
   const { userId } = req.params;
+  
+  console.log("[GET_CONVERSATIONS] Request received");
+  console.log("[GET_CONVERSATIONS] URL userId param:", userId);
+  console.log("[GET_CONVERSATIONS] req.user:", req.user);
+  
+  // Ensure authenticated user can only access their own conversations
+  if (!req.user || !req.user.userId) {
+    console.error("[GET_CONVERSATIONS] User not found in request");
+    return res.status(401).json({ error: "Unauthorized: User not authenticated" });
+  }
+  
+  if (req.user.userId !== userId) {
+    console.warn(`[GET_CONVERSATIONS] User mismatch: JWT userId=${req.user.userId}, param userId=${userId}`);
+    return res.status(403).json({ error: "Unauthorized: Cannot access other users' conversations" });
+  }
+  
   try {
     const conversations = await Conversation.find({ userId, status: "active" });
+    console.log(`[GET_CONVERSATIONS] Found ${conversations.length} conversations for user ${userId}`);
     
     // Filter out system prompts and internal messages before sending to client
     const filteredConversations = conversations.map(conv => ({
@@ -390,6 +419,7 @@ export const getAllConversations = async (req, res) => {
     
     res.json(filteredConversations);
   } catch (err) {
+    console.error("[GET_CONVERSATIONS] Database error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
@@ -399,12 +429,19 @@ export const getAllConversations = async (req, res) => {
 export const deleteConversation = async (req, res) => {
   const { conversationId } = req.params;
   try {
-    const conversation = await Conversation.findOneAndUpdate(
+    const conversation = await Conversation.findOne({ conversationId });
+    if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+    
+    // Ensure authenticated user can only delete their own conversation
+    if (conversation.userId !== req.user.userId) {
+      return res.status(403).json({ error: "Unauthorized: Cannot delete other users' conversations" });
+    }
+    
+    await Conversation.findOneAndUpdate(
       { conversationId },
       { status: "deleted" },
       { new: true }
     );
-    if (!conversation) return res.status(404).json({ error: "Conversation not found" });
     res.json({ message: "Conversation deleted", conversation });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -419,6 +456,11 @@ export const summarizeConversation = async (req, res) => {
   try {
     const conversation = await Conversation.findOne({ conversationId });
     if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+    
+    // Ensure authenticated user can only summarize their own conversation
+    if (conversation.userId !== req.user.userId) {
+      return res.status(403).json({ error: "Unauthorized: Cannot summarize other users' conversations" });
+    }
 
     const aiResponse = await axios.post(`${AI_SERVICE_URL}/generate`, {
       provider,
@@ -439,21 +481,14 @@ export const summarizeConversation = async (req, res) => {
   }
 };
 
-export const allConversations = async (req, res) => {
-  try {
-    const conversations = await Conversation.find({});
-    res.json(conversations);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+
 
 
 async function retrieveContext({ userId, docIds, query }) {
   console.log("retrieveContext called with:", { userId, docIds, query });
   try {
     const resp = await axios.post(
-      `${process.env.RETRIEVAL_SERVICE_URL}/retrieve`,
+      `${process.env.RETRIEVAL_SERVICE_URL}/`,
       {
         userId,
         docIds,

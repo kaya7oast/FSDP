@@ -1,6 +1,9 @@
 import express from "express";
 import dotenv from "dotenv";
 import { generateAIResponse } from "./generateAIResponse.js";
+import { generateAIImage } from "./generateImage.js"; 
+
+
 
 dotenv.config();
 const app = express();
@@ -22,8 +25,18 @@ app.get("/test", (req, res) => {
   res.send("AI Service test route is working");
 });
 
+app.post("/generate-image", async (req, res) => {
+  const { prompt } = req.body;
+  try {
+    const imageUrl = await generateAIImage(prompt);
+    res.json({ imageUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Image Service error" });
+  }
+});
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`AI Service running on port ${PORT}`);
 });
+

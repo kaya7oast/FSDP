@@ -3,9 +3,6 @@ import { Avatar, AvatarFallback } from "./avatar";
 import ChatInput from "./input"; 
 import { MarkdownMessage } from "./MarkdownMessage"; 
 
-// Hardcoded user ID for now (matches your previous working version)
-const USER_ID = "U002"; 
-
 // --- HELPER: Cleans up JSON artifacts from Bot ---
 const parseBotResponse = (rawContent) => {
   if (typeof rawContent !== 'string') return rawContent;
@@ -50,10 +47,11 @@ export default function AgentConversation() {
   
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
+  const [userId, setUserId] = useState(null);
 
-  // 1. Fetch Agents and Docs
+  // 1. Fetch Agents
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchAgents = async () => {
       try {
         const token = localStorage.getItem("token"); // Get token for auth headers
 
@@ -66,9 +64,52 @@ export default function AgentConversation() {
           setAgents(Array.isArray(agentData) ? agentData : []);
           if (agentData.length > 0) setSelectedAgent(agentData[0]);
         }
+      } catch (err) {
+        console.error("Error fetching agents:", err);
+      }
+    };
+    fetchAgents();
+  }, []);
 
-        // Fetch Documents
-        const docRes = await fetch(`/ingestion/docs/${USER_ID}`, {
+  // Get authenticated user id: prefer /auth/me, fallback to decoding JWT
+  useEffect(() => {
+    const resolveUser = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      // Try backend endpoint
+      try {
+        const res = await fetch("/auth/me", { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const data = await res.json();
+          setUserId(data.userId || data.id || data._id || (data.user && data.user.id));
+          return;
+        }
+      } catch (e) {
+        // ignore and fallback to token decode
+      }
+
+      // Fallback: decode JWT payload
+      try {
+        const base64Payload = token.split('.')[1];
+        const jsonPayload = decodeURIComponent(atob(base64Payload).split('').map(c =>
+          '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join(''));
+        const payload = JSON.parse(jsonPayload);
+        setUserId(payload.userId || payload.id || payload.sub);
+      } catch (err) {
+        console.warn('Failed to resolve userId from token', err);
+      }
+    };
+    resolveUser();
+  }, []);
+
+  // Fetch documents once we have userId
+  useEffect(() => {
+    if (!userId) return;
+    const fetchDocs = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const docRes = await fetch(`/ingestion/docs/${userId}`, {
              headers: token ? { Authorization: `Bearer ${token}` } : {}
         }); 
         if (docRes.ok) {
@@ -76,15 +117,15 @@ export default function AgentConversation() {
           setDocuments(Array.isArray(docData) ? docData : []);
         }
       } catch (err) {
-        console.error("Error fetching initial data:", err);
+        console.error("Error fetching docs:", err);
       }
     };
-    fetchInitialData();
-  }, []);
+    fetchDocs();
+  }, [userId]);
 
   // 2. Load History
   useEffect(() => {
-    if (!selectedAgent) return;
+    if (!selectedAgent || !userId) return;
 
     const loadConversationHistory = async () => {
       setMessages([]); 
@@ -92,13 +133,23 @@ export default function AgentConversation() {
       setSelectedDocIds([]); 
 
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`/conversations/user/${USER_ID}`, {
+           const token = localStorage.getItem("token");
+           console.log("[CONVERSATION] Loading history for userId:", userId);
+           console.log("[CONVERSATION] Token available:", !!token);
+           
+           const res = await fetch(`/conversations/user/${userId}`, {
              headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
+           });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.error("[CONVERSATION] Failed to load history:", res.status, errorData);
+          return;
+        }
 
         if (res.ok) {
           const conversations = await res.json();
+          console.log("[CONVERSATION] Loaded conversations:", conversations);
           const activeAgentId = String(selectedAgent.AgentID || selectedAgent._id);
           
           const match = conversations.find(
@@ -125,7 +176,7 @@ export default function AgentConversation() {
       }
     };
     loadConversationHistory();
-  }, [selectedAgent]);
+  }, [selectedAgent, userId]);
 
   const handleAgentSelection = (agent) => setSelectedAgent(agent);
 
@@ -135,13 +186,44 @@ export default function AgentConversation() {
     );
   };
 
+  const handleDeleteDocument = async (e, docId) => {
+    e.stopPropagation();
+    
+    if (!userId || !docId) return;
+
+    if (!confirm("Are you sure you want to delete this document?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/ingestion/docs/${userId}/${docId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+
+      if (!res.ok) throw new Error("Failed to delete document");
+
+      // Remove from UI
+      setDocuments(prev => prev.filter(doc => doc.docId !== docId));
+      setSelectedDocIds(prev => prev.filter(id => id !== docId));
+      alert("Document deleted successfully");
+    } catch (err) {
+      console.error("Error deleting document:", err);
+      alert("Error deleting document: " + err.message);
+    }
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!userId) {
+      alert('You must be signed in to upload files.');
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("userId", USER_ID);
+    formData.append("userId", userId);
 
     setIsUploading(true);
     try {
@@ -164,7 +246,7 @@ export default function AgentConversation() {
 
   // 3. Send Message
   const handleSendMessage = async (text) => {
-    if (!text.trim() || !selectedAgent) return;
+    if (!text.trim() || !selectedAgent || !userId) return;
 
     const userMsg = {
       role: "user",
@@ -186,7 +268,7 @@ export default function AgentConversation() {
             "Authorization": token ? `Bearer ${token}` : "" 
         },
         body: JSON.stringify({
-          userId: USER_ID,
+          userId: userId,
           message: text,
           conversationId: conversationId,
           docIds: selectedDocIds, 
@@ -277,7 +359,7 @@ export default function AgentConversation() {
               <div 
                 key={doc.docId} 
                 onClick={() => toggleDocSelection(doc.docId)}
-                className={`flex items-center gap-2 p-2 rounded-lg text-xs cursor-pointer transition-colors ${
+                className={`flex items-center gap-2 p-2 rounded-lg text-xs cursor-pointer transition-colors group ${
                   selectedDocIds.includes(doc.docId) 
                     ? "bg-white dark:bg-slate-800 border border-violet-200 text-violet-700 dark:text-violet-300 shadow-sm" 
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-200/50"
@@ -287,11 +369,18 @@ export default function AgentConversation() {
                   {selectedDocIds.includes(doc.docId) ? "check_box" : "check_box_outline_blank"}
                 </span>
                 <span className="truncate flex-1">{doc.docName || "Untitled Document"}</span>
+                <button 
+                  onClick={(e) => handleDeleteDocument(e, doc.docId)}
+                  className="w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20 text-red-500 hover:text-red-600"
+                  title="Delete document"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
               </div>
             ))}
           </div>
           <label className="flex items-center justify-center gap-2 w-full p-2.5 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl cursor-pointer bg-white dark:bg-slate-900 hover:border-violet-500 hover:text-violet-600 transition-all group">
-            <input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
+            <input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading || !userId} />
             <span className="material-symbols-outlined text-slate-400 group-hover:text-inherit text-lg">
               {isUploading ? "sync" : "cloud_upload"}
             </span>
@@ -349,7 +438,7 @@ export default function AgentConversation() {
         {/* --- USE YOUR NEW COMPONENT --- */}
         <ChatInput 
           onSendMessage={handleSendMessage} 
-          disabled={!selectedAgent || isTyping} 
+          disabled={!selectedAgent || isTyping || !userId} 
         />
       </section>
     </div>
