@@ -134,12 +134,22 @@ export default function AgentConversation() {
 
       try {
            const token = localStorage.getItem("token");
+           console.log("[CONVERSATION] Loading history for userId:", userId);
+           console.log("[CONVERSATION] Token available:", !!token);
+           
            const res = await fetch(`/conversations/user/${userId}`, {
              headers: token ? { Authorization: `Bearer ${token}` } : {}
            });
 
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.error("[CONVERSATION] Failed to load history:", res.status, errorData);
+          return;
+        }
+
         if (res.ok) {
           const conversations = await res.json();
+          console.log("[CONVERSATION] Loaded conversations:", conversations);
           const activeAgentId = String(selectedAgent.AgentID || selectedAgent._id);
           
           const match = conversations.find(
