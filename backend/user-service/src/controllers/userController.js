@@ -127,3 +127,74 @@ export const getUserProfile = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const addCustomNode = async (req, res) => {
+  try {
+
+    console.log("🔍 USER SERVICE RECEIVED:", JSON.stringify(req.body, null, 2));
+
+    const { userId, nodeData } = req.body; // Expecting userId and the node object
+
+    if (!userId || !nodeData) {
+      return res.status(400).json({ message: "Missing userId or nodeData" });
+    }
+
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Add to array
+    user.customNodes.push(nodeData);
+    await user.save();
+
+    res.status(201).json(user.customNodes); // Return the updated list
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ✅ DELETE NODE
+export const deleteCustomNode = async (req, res) => {
+  try {
+    const { userId, nodeId } = req.params;
+    
+    // MongoDB $pull operator removes an item from an array
+    await User.updateOne(
+      { userId }, 
+      { $pull: { customNodes: { _id: nodeId } } }
+    );
+
+    // Return the fresh list
+    const user = await User.findOne({ userId });
+    res.json(user.customNodes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ✅ EDIT NODE
+export const updateCustomNode = async (req, res) => {
+  try {
+    const { userId, nodeId } = req.params;
+    const { nodeData } = req.body;
+
+    // MongoDB array filter to update specific item
+    await User.updateOne(
+      { userId, "customNodes._id": nodeId },
+      { 
+        $set: { 
+          "customNodes.$.label": nodeData.label,
+          "customNodes.$.category": nodeData.category,
+          "customNodes.$.icon": nodeData.icon,
+          "customNodes.$.content": nodeData.content
+        } 
+      }
+    );
+
+    const user = await User.findOne({ userId });
+    res.json(user.customNodes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
