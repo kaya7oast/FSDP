@@ -3,19 +3,19 @@ import User from "../models/userModel.js";
 import Counter from "../models/counterModel.js";
 import jwt from "jsonwebtoken";
 
-// REGISTER: Requires Username, Email, and Password
+// REGISTER: Requires Username, and Password
 export const registerUser = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!username || !email || !password) {
+    if (!username || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Check if user already exists by email or username
-    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    // Check if user already exists
+    const existingUser = await User.findOne({ username});
     if (existingUser) {
-      return res.status(400).json({ message: "Username or Email already in use" });
+      return res.status(400).json({ message: "Username already in use" });
     }
 
     const counter = await Counter.findByIdAndUpdate(
@@ -29,7 +29,6 @@ export const registerUser = async (req, res) => {
     const user = await User.create({
       userId: counter.seq.toString(),
       username,
-      email,
       password: hashedPassword
     });
 
@@ -45,14 +44,12 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// LOGIN: Supports login via Username OR Email
+// LOGIN: Supports login via Username
 export const loginUser = async (req, res) => {
   try {
     const { identifier, password } = req.body;
 
-    const user = await User.findOne({
-      $or: [{ username: identifier }, { email: identifier }]
-    }).select("+password");
+    const user = await User.findOne({ username }).select("+password");
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: "Invalid credentials" });

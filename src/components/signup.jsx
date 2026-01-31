@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
 const Signup = () => {
-  const [formData, setFormData] = useState({ username: '', password: '', email: '' });
+  const [formData, setFormData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
@@ -57,10 +57,6 @@ const Signup = () => {
           <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Username</label>
             <input type="text" name="username" required placeholder="Name" className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-border-light dark:border-border-dark rounded-xl outline-none dark:text-white" onChange={handleChange} />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Email</label>
-            <input type="email" name="email" required placeholder="name@gmail.com" className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-border-light dark:border-border-dark rounded-xl outline-none dark:text-white" onChange={handleChange} />
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Password</label>
