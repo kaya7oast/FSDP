@@ -172,6 +172,7 @@ const VoiceAssistant = () => {
         - "Builder" -> "/builder"
         - "Chats" -> "/chats"
         - "Settings" -> "/settings"
+        - Visualizations" -> "/visualisation"
 
         CAPABILITIES:
         1. NAVIGATE: Switch screens.

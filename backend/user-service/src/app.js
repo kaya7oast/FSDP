@@ -7,7 +7,7 @@ import {
   loginUser,
   guestLogin,
   getUserProfile,
-  addCustomNode
+  addCustomNode,
   authMe,
 } from "./controllers/userController.js";
 
