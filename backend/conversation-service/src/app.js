@@ -37,6 +37,16 @@ app.get("/user/:userId", protect, getAllConversations);
 app.get("/:conversationId", protect, getConversation);
 app.post("/:conversationId/delete", protect, deleteConversation);
 app.post("/:conversationId/summarize", protect, summarizeConversation);
+
+// Debug endpoint to test authentication
+app.get("/test/auth", protect, (req, res) => {
+  res.json({ 
+    message: "Auth test successful", 
+    user: req.user,
+    jwt_secret_configured: !!process.env.JWT_SECRET 
+  });
+});
+
 //test
 app.get("/test", (req, res) => {
   res.send("Test route is working");

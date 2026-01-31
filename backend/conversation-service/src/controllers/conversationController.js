@@ -192,7 +192,7 @@ export const chatWithAgent = async (req, res) => {
       - Tone: ${tone}
       - Style: ${style}
       - Attitude: ${emotion}
-s
+q
       INSTRUCTIONS:
       Stay in character. Use your specific capabilities to help the user. 
       If asked what you can do, list your specific capabilities.
@@ -384,13 +384,24 @@ export const getConversation = async (req, res) => {
 export const getAllConversations = async (req, res) => {
   const { userId } = req.params;
   
+  console.log("[GET_CONVERSATIONS] Request received");
+  console.log("[GET_CONVERSATIONS] URL userId param:", userId);
+  console.log("[GET_CONVERSATIONS] req.user:", req.user);
+  
   // Ensure authenticated user can only access their own conversations
+  if (!req.user || !req.user.userId) {
+    console.error("[GET_CONVERSATIONS] User not found in request");
+    return res.status(401).json({ error: "Unauthorized: User not authenticated" });
+  }
+  
   if (req.user.userId !== userId) {
+    console.warn(`[GET_CONVERSATIONS] User mismatch: JWT userId=${req.user.userId}, param userId=${userId}`);
     return res.status(403).json({ error: "Unauthorized: Cannot access other users' conversations" });
   }
   
   try {
     const conversations = await Conversation.find({ userId, status: "active" });
+    console.log(`[GET_CONVERSATIONS] Found ${conversations.length} conversations for user ${userId}`);
     
     // Filter out system prompts and internal messages before sending to client
     const filteredConversations = conversations.map(conv => ({
@@ -402,6 +413,7 @@ export const getAllConversations = async (req, res) => {
     
     res.json(filteredConversations);
   } catch (err) {
+    console.error("[GET_CONVERSATIONS] Database error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
