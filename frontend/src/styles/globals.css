@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+/* Custom Cursor for the Brain Builder */
+.cursor-crosshair {
+  /* Fallback to crosshair if image fails */
+  cursor: crosshair; 
+}
+
+/* Optional: If you want to use a real image, use a data URI or URL */
+/* .cursor-paw {
+  cursor: url('https://cdn-icons-png.flaticon.com/32/1077/1077063.png'), auto;
+}
+*/

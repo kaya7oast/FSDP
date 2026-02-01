@@ -1,0 +1,20 @@
+/* ...existing code... */
+.sidebar {
+  position: sticky;
+  top: 1rem;                     /* distance from top when sticky */
+  align-self: flex-start;        /* ensure it doesn't stretch */
+  height: calc(100vh - 2rem);    /* full viewport height minus top/bottom offsets */
+  overflow: auto;                /* allow internal scroll if content is tall */
+  -webkit-overflow-scrolling: touch;
+  z-index: 10;                   /* raise above page content if needed */
+}
+
+/* optional: smaller width on small desktops */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .sidebar { width: 56px; } /* adjust as needed */
+}
+
+/* ...existing code... */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>AI Agents Homepage</title>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="../public/css/agentHomepage.css" rel="stylesheet"/>
+    
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+  </head>
+
+  <body class="font-display">
+    <div class="relative flex h-auto min-h-screen w-full flex-col bg-background-light dark:bg-background-dark group/design-root overflow-x-hidden">
+      <div class="layout-container flex h-full grow flex-col">
+        <div class="flex flex-1">
+          <aside class="flex flex-col gap-y-6 w-64 bg-white dark:bg-background-dark border-r border-slate-200 dark:border-slate-800 p-4">
+            <div class="flex items-center gap-2 px-4">
+              <svg class="h-8 w-8 text-primary" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                <path d="M36.7273 44C33.9891 44 31.6043 39.8386 30.3636 33.69C29.123 39.8386 26.7382 44 24 44C21.2618 44 18.877 39.8386 17.6364 33.69C16.3957 39.8386 14.0109 44 11.2727 44C7.25611 44 4 35.0457 4 24C4 12.9543 7.25611 4 11.2727 4C14.0109 4 16.3957 8.16144 17.6364 14.31C18.877 8.16144 21.2618 4 24 4C26.7382 4 29.123 8.16144 30.3636 14.31C31.6043 8.16144 33.9891 4 36.7273 4C40.7439 4 44 12.9543 44 24C44 35.0457 40.7439 44 36.7273 44Z" fill="currentColor"></path>
+              </svg>
+              <h1 class="text-xl font-bold text-slate-900 dark:text-white">AI Agents</h1>
+            </div>
+
+            <nav class="flex flex-col gap-2">
+              <a class="flex items-center gap-3 px-4 py-2 rounded-lg bg-primary/20 text-primary transition-colors duration-200" href="/views/agentHomepage.html">
+                <span class="material-symbols-outlined">widgets</span>
+                <span class="font-medium myagent">My Agents</span>
+              </a>
+
+              <a class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200" href="/views/agentBuilder.html">
+                <span class="material-symbols-outlined">add_circle_outline</span>
+                <span class="font-medium newagent">Create New Agent</span>
+              </a>
+
+              <a class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200" href="/views/agentConversation.html">
+                <span class="material-symbols-outlined">chat_bubble_outline</span>
+                <span class="font-medium conversation">Conversations</span>
+              </a>
+
+              <a class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200" href="/views/agentDashboard.html">
+                <span class="material-symbols-outlined">settings</span>
+                <span class="font-medium setting">Settings</span>
+              </a>
+            </nav>
+          </aside>
+
+          <main class="flex-1">
+            <header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-slate-800 px-8 py-4">
+              <div class="flex items-center gap-4 text-slate-900 dark:text-white">
+                <h2 class="text-lg font-bold leading-tight tracking-[-0.015em]">Dashboard</h2>
+              </div>
+
+              <div class="flex flex-1 justify-end gap-4">
+                <button class="flex items-center justify-center rounded-lg h-10 w-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors duration-200">
+                  <span class="material-symbols-outlined">settings</span>
+                </button>
+
+                <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAW2H8aMB-Bg3aLEPZvNwQkC8zflD8QK_cmlr8_Vns_QYO9dbbiB9Ft1t7DPM3h6sb6TyWJeD05BHC0gKx5otjXOAUlfcgCMI4tvtylDqX4w-iJqeyWnknMHQebIzz4ULl9u5KJ24D4s2fcz_7GcBJzFtomEa2gHZNilDf3BmgWTdEddTeTckjB0ibiieLPaEgcb0imZKtPqw2BLUAO4LgeRv2x5cNCHXnBSNFF0cxiu4PJ2qg8JzolXAfaNM4fVDE0F69jGpFaSNM");'></div>
+              </div>
+            </header>
+
+            <div class="p-8">
+              <div class="flex flex-wrap justify-between items-center gap-4 mb-8">
+                <div class="flex min-w-72 flex-col">
+                  <p class="text-slate-900 dark:text-white text-3xl font-black leading-tight tracking-[-0.033em]">Your AI Agents</p>
+                  <p class="text-slate-500 dark:text-slate-400 text-base font-normal leading-normal">Manage and create your custom AI agents.</p>
+                </div>
+
+                <a href="./agentBuilder.html" class="flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors duration-200" role="button" aria-label="Create New Agent">
+                  <span class="truncate">Create New Agent</span>
+                </a>
+              </div>
+
+              <div class="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
+                <div class="flex flex-col gap-4 p-5 bg-white dark:bg-slate-900 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-200">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <p class="text-slate-900 dark:text-white text-lg font-bold leading-normal">Sales Bot</p>
+                      <p class="text-slate-500 dark:text-slate-400 text-sm font-normal leading-normal mt-1">Handles all sales inquiries and lead generation.</p>
+                    </div>
+
+                    <div class="flex items-center">
+                      <input aria-label="Enable Sales Bot" checked class="h-4 w-8 appearance-none rounded-full bg-slate-300 dark:bg-slate-700 checked:bg-primary transition duration-200 ease-in-out cursor-pointer" type="checkbox" />
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between items-center text-sm text-slate-500 dark:text-slate-400">
+                    <span>Active 2 hours ago</span>
+                    <button class="text-primary hover:underline">Edit</button>
+                  </div>
+                </div>
+
+                <div class="flex flex-col gap-4 p-5 bg-white dark:bg-slate-900 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-200">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <p class="text-slate-900 dark:text-white text-lg font-bold leading-normal">Customer Support Bot</p>
+                      <p class="text-slate-500 dark:text-slate-400 text-sm font-normal leading-normal mt-1">Provides 24/7 customer support and answers FAQs.</p>
+                    </div>
+
+                    <div class="flex items-center">
+                      <input aria-label="Enable Customer Support Bot" checked class="h-4 w-8 appearance-none rounded-full bg-slate-300 dark:bg-slate-700 checked:bg-primary transition duration-200 ease-in-out cursor-pointer" type="checkbox" />
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between items-center text-sm text-slate-500 dark:text-slate-400">
+                    <span>Active 5 hours ago</span>
+                    <button class="text-primary hover:underline">Edit</button>
+                  </div>
+                </div>
+
+                <div class="flex flex-col gap-4 p-5 bg-white dark:bg-slate-900 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-200">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <p class="text-slate-900 dark:text-white text-lg font-bold leading-normal">Research Assistant</p>
+                      <p class="text-slate-500 dark:text-slate-400 text-sm font-normal leading-normal mt-1">Gathers and summarizes information from the web.</p>
+                    </div>
+
+                    <div class="flex items-center">
+                      <input aria-label="Enable Research Assistant" class="h-4 w-8 appearance-none rounded-full bg-slate-300 dark:bg-slate-700 checked:bg-primary transition duration-200 ease-in-out cursor-pointer" type="checkbox" />
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between items-center text-sm text-slate-500 dark:text-slate-400">
+                    <span>Inactive</span>
+                    <button class="text-primary hover:underline">Edit</button>
+                  </div>
+                </div>
+
+                <div class="flex flex-col gap-4 p-5 bg-white dark:bg-slate-900 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-200">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <p class="text-slate-900 dark:text-white text-lg font-bold leading-normal">Content Creator</p>
+                      <p class="text-slate-500 dark:text-slate-400 text-sm font-normal leading-normal mt-1">Generates high-quality content for your blog.</p>
+                    </div>
+
+                    <div class="flex items-center">
+                      <input aria-label="Enable Content Creator" checked class="h-4 w-8 appearance-none rounded-full bg-slate-300 dark:bg-slate-700 checked:bg-primary transition duration-200 ease-in-out cursor-pointer" type="checkbox" />
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between items-center text-sm text-slate-500 dark:text-slate-400">
+                    <span>Active 1 day ago</span>
+                    <button class="text-primary hover:underline">Edit</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Empty State Example -->
+              <!--
+                <div class="flex flex-col items-center justify-center text-center py-16">
+                  <div class="w-full max-w-sm mb-6">
+                    <img src="https://illustrations.popsy.co/white/robot.svg" alt="A friendly robot illustration" class="mx-auto" />
+                  </div>
+                  <p class="text-slate-900 dark:text-white text-2xl font-bold leading-tight tracking-[-0.015em]">You have no agents yet.</p>
+                  <p class="text-slate-500 dark:text-slate-400 text-base font-normal leading-normal mt-2 mb-6">Create your first agent to get started.</p>
+                  <button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors duration-200">
+                    <span class="truncate">Create Your First Agent</span>
+                  </button>
+                </div>
+              -->
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+    <script src="../public/js/agentHomepage.js" defer></script>
+  </body>
+</html>
