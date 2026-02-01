@@ -1,36 +1,36 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
   appType: 'spa',
   server: {
-    // historyApiFallback: true,
+    host: true, // allow access from other containers
     proxy: {
       '/agents': {
-        target: 'http://127.0.0.1:3000',
-        changeOrigin: true
+        target: 'http://backend:4001',
+        changeOrigin: true,
       },
       '/conversations': {
-        target: 'http://127.0.0.1:3000',
-        changeOrigin: true
+        target: 'http://backend:4001',
+        changeOrigin: true,
       },
       '/ingestion': {
-        target: 'http://127.0.0.1:3000',
-        changeOrigin: true
+        target: 'http://backend:4001',
+        changeOrigin: true,
       },
       '/retrieval': {
-        target: 'http://127.0.0.1:3000',
-        changeOrigin: true
+        target: 'http://backend:4001',
+        changeOrigin: true,
       },
       '/ai': {
-        target: 'http://127.0.0.1:3000',
-        changeOrigin: true
+        target: 'http://backend:4001',
+        changeOrigin: true,
       },
       '/users': {
-        target: 'http://127.0.0.1:3000',
-        changeOrigin: true
-      }
-    }
-  }
-})
+        target: 'http://backend:4001',
+        changeOrigin: true,
+      },
+    },
+  },
+});

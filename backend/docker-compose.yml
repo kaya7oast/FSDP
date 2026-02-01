@@ -103,6 +103,24 @@ services:
       EMBEDDING_SERVICE_URL: http://retrieval-service:4005
     networks:
       - backend
+
+  frontend:
+      build:
+        context: ../frontend
+      container_name: frontend
+      ports:
+        - "5173:5173"
+      environment:
+        VITE_API_URL: http://api-gateway:3000
+        VITE_PROXY_TARGET: http://api-gateway:3000
+      volumes:
+        - ../frontend:/app
+        - /app/node_modules
+      depends_on:
+        - api-gateway
+      networks:
+        - backend
+
 networks:
   backend:
     driver: bridge
