@@ -69,9 +69,19 @@ export const registerUser = async (req, res) => {
 // LOGIN: Supports login via Username
 export const loginUser = async (req, res) => {
   try {
-    const { identifier, password } = req.body;
+    const { username, identifier, password } = req.body;
 
-    const user = await User.findOne({ identifier }).select("+password");
+    if (!password || (!username && !identifier)) {
+      return res.status(400).json({ message: "Missing credentials" });
+    }
+
+    // Prefer explicit `username` (frontend), otherwise allow `identifier` (username/email)
+    let user;
+    if (username) {
+      user = await User.findOne({ username }).select("+password");
+    } else {
+      user = await User.findOne({ $or: [{ username: identifier }, { email: identifier }] }).select("+password");
+    }
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: "Invalid credentials" });
